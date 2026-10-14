@@ -1,12 +1,12 @@
-// Pembuatan Papan 3D Prosedural WNI Simulator (Milestone 2):
-// - 40 Petak dengan ketinggian berbeda, warna khas, dan CanvasTexture tajam
-// - Peta kepulauan Indonesia poligon low-poly + emblem "WNI SIMULATOR" di tengah papan
-// - Sel Lapas Cipinang 3D di petak 10 DENGAN PINTU BESI BERENGSEL (bisa membuka & menutup)
-// - InstancedMesh untuk Rumah & Hotel dengan ANIMASI NAIK DARI BAWAH TANAH saat beli/bangun tanah
+// Papan 3D Prosedural WNI Simulator (Upgrade Estetika Arsitektur Rumah, Kavling, & Hotel):
+// - Perbaikan elevasi Y: seluruh bangunan berdiri utuh di ATAS balok grup warna (anti-clipping)
+// - Penggantian keping bulat penutup teks menjadi Sabuk Pemilik Bercahaya + Tiang Plang Sertifikat 3D
+// - Arsitektur Rumah 4-Komponen InstancedMesh: Fondasi Batu, Dinding Fasad Vector 512px, Teras Timbul, & Atap Genteng Lebar
+// - Arsitektur Hotel 4-Komponen InstancedMesh: Podium Lobi, Menara Kaca Emas, Mahkota Gedung, & Puncak Spire
 
-import * as THREE from 'three';
-import gsap from 'gsap';
-import { BOARD_TILES } from '../shared/tiles.js';
+import * as THREE from "three";
+import gsap from "gsap";
+import { BOARD_TILES } from "../shared/tiles.js";
 
 export class Board3D {
   constructor(scene) {
@@ -14,28 +14,41 @@ export class Board3D {
     this.boardGroup = new THREE.Group();
     this.scene.add(this.boardGroup);
 
+    this.archipelagoGroup = new THREE.Group();
+    this.boardGroup.add(this.archipelagoGroup);
+    this.coastGlowMaterials = [];
+
     this.tileCoordinates = [];
     this.tileMeshes = [];
-
-    // Pivot pintu sel Lapas Cipinang (#10) untuk animasi membuka & menutup
     this.jailDoorPivot = null;
 
-    // InstancedMesh untuk rumah & hotel agar performa tetap 60 FPS
-    this.houseInstancedMesh = null;
-    this.hotelInstancedMesh = null;
     this.maxHouses = 120;
     this.maxHotels = 25;
 
-    // Menyimpan daftar instance bangunan per petak agar bisa dianimasikan naik dari bawah tanah
+    // 4 Komponen InstancedMesh untuk Rumah agar proporsional & detail
+    this.houseFoundationInst = null;
+    this.houseWallInst = null;
+    this.housePorchInst = null;
+    this.houseRoofInst = null;
+
+    // 4 Komponen InstancedMesh untuk Hotel Sultan
+    this.hotelPodiumInst = null;
+    this.hotelWallInst = null;
+    this.hotelCrownInst = null;
+    this.hotelRoofInst = null;
+
     this.tileBuildingMap = new Map();
+
+    this.boardShakeTimer = 0;
+    this.boardShakeIntensity = 0;
 
     this._hitungKoordinatPetak();
     this._bangunMejaDanTengahPapan();
-    this._bangunPetaIndonesia3D();
-    this._bangun40Petak();
+    this._bangunPetaIndonesiaOrganik();
+    this._bangun40PetakHidup();
     this._bangunSelLapas3D();
-    this._bangunDekorasiInstanced();
-    this._bangunInstancedBangunan();
+    this._bangunDekorasiPohonSmooth();
+    this._bangunInstancedArsitekturMegah();
   }
 
   _hitungKoordinatPetak() {
@@ -82,11 +95,24 @@ export class Board3D {
 
       const tileData = BOARD_TILES[i];
       let height = 0.36;
-      if (isCorner) height = 0.52;
-      else if (tileData.tipe === 'PROPERTY') height = 0.34 + (i / 40) * 0.14;
-      else if (tileData.tipe === 'DISASTER' || tileData.tipe === 'PUNGLI') height = 0.45;
+      if (isCorner) height = 0.54;
+      else if (tileData.tipe === "PROPERTY") height = 0.35 + (i / 40) * 0.14;
+      else if (tileData.tipe === "DISASTER" || tileData.tipe === "PUNGLI")
+        height = 0.46;
 
-      this.tileCoordinates.push({ x, y: height, z, rotY, isCorner, height });
+      // Tinggi tambahan pita warna di atas petak PROPERTY adalah 0.10
+      const colorBarHeight = tileData.tipe === "PROPERTY" ? 0.1 : 0;
+
+      this.tileCoordinates.push({
+        x,
+        y: height,
+        z,
+        rotY,
+        isCorner,
+        height,
+        colorBarHeight,
+        buildingBaseY: height + colorBarHeight,
+      });
     }
   }
 
@@ -97,113 +123,111 @@ export class Board3D {
 
   getTokenPositionOnTile(tileIndex, slotIndex = 0) {
     const coord = this.tileCoordinates[tileIndex];
-    // Jika di petak 10 (Lapas), tempatkan agak ke tengah sel
     if (tileIndex === 10) {
       const cellOffsets = [
         { dx: -0.22, dz: -0.22 },
         { dx: 0.22, dz: -0.22 },
         { dx: -0.22, dz: 0.22 },
-        { dx: 0.22, dz: 0.22 }
+        { dx: 0.22, dz: 0.22 },
       ];
       const off = cellOffsets[slotIndex % 4];
       return new THREE.Vector3(coord.x + off.dx, coord.y, coord.z + off.dz);
     }
 
     const offsets = [
-      { dx: -0.35, dz: -0.35 },
-      { dx: 0.35, dz: -0.35 },
-      { dx: -0.35, dz: 0.35 },
-      { dx: 0.35, dz: 0.35 }
+      { dx: -0.34, dz: -0.18 },
+      { dx: 0.34, dz: -0.18 },
+      { dx: -0.34, dz: 0.42 },
+      { dx: 0.34, dz: 0.42 },
     ];
     const off = offsets[slotIndex % 4];
     return new THREE.Vector3(coord.x + off.dx, coord.y, coord.z + off.dz);
   }
 
   _bangunMejaDanTengahPapan() {
-    const baseGeo = new THREE.BoxGeometry(22.2, 0.5, 22.2);
+    const baseGeo = new THREE.BoxGeometry(22.4, 0.55, 22.4);
     const baseMat = new THREE.MeshStandardMaterial({
       color: 0x1e293b,
-      roughness: 0.7,
-      metalness: 0.15
+      roughness: 0.65,
+      metalness: 0.18,
     });
     const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-    baseMesh.position.y = -0.25;
+    baseMesh.position.y = -0.28;
     baseMesh.receiveShadow = true;
     this.boardGroup.add(baseMesh);
 
-    const centerCanvas = this._buatTeksturTengahPapan();
+    const centerCanvas = this._buatTeksturLautTengah();
     const centerTex = new THREE.CanvasTexture(centerCanvas);
     centerTex.anisotropy = 4;
 
-    const centerGeo = new THREE.BoxGeometry(15.6, 0.22, 15.6);
+    const centerGeo = new THREE.BoxGeometry(15.6, 0.24, 15.6);
     const centerMat = new THREE.MeshStandardMaterial({
       map: centerTex,
-      roughness: 0.55,
-      metalness: 0.1
+      roughness: 0.4,
+      metalness: 0.15,
     });
     const centerMesh = new THREE.Mesh(centerGeo, centerMat);
-    centerMesh.position.y = 0.11;
+    centerMesh.position.y = 0.12;
     centerMesh.receiveShadow = true;
     this.boardGroup.add(centerMesh);
   }
 
-  _buatTeksturTengahPapan() {
-    const canvas = document.createElement('canvas');
+  _buatTeksturLautTengah() {
+    const canvas = document.createElement("canvas");
     canvas.width = 1024;
     canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
-    const grad = ctx.createRadialGradient(512, 512, 80, 512, 512, 700);
-    grad.addColorStop(0, '#0c4a6e');
-    grad.addColorStop(0.6, '#082f49');
-    grad.addColorStop(1, '#041e30');
+    const grad = ctx.createRadialGradient(512, 512, 60, 512, 512, 720);
+    grad.addColorStop(0, "#0284c7");
+    grad.addColorStop(0.45, "#0369a1");
+    grad.addColorStop(0.8, "#0c4a6e");
+    grad.addColorStop(1, "#082f49");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1024, 1024);
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
-    ctx.lineWidth = 2;
-    for (let p = 128; p < 1024; p += 128) {
+    ctx.strokeStyle = "rgba(186, 230, 253, 0.12)";
+    ctx.lineWidth = 3;
+    for (let y = 60; y < 980; y += 48) {
       ctx.beginPath();
-      ctx.moveTo(p, 0);
-      ctx.lineTo(p, 1024);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(0, p);
-      ctx.lineTo(1024, p);
+      for (let x = 40; x < 984; x += 64) {
+        ctx.quadraticCurveTo(x + 16, y - 10, x + 32, y);
+        ctx.quadraticCurveTo(x + 48, y + 10, x + 64, y);
+      }
       ctx.stroke();
     }
 
-    ctx.strokeStyle = 'rgba(250, 204, 21, 0.35)';
-    ctx.setLineDash([16, 12]);
+    ctx.strokeStyle = "rgba(253, 224, 71, 0.35)";
+    ctx.setLineDash([18, 12]);
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, 480);
-    ctx.lineTo(1024, 480);
+    ctx.moveTo(0, 490);
+    ctx.lineTo(1024, 490);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.save();
-    ctx.translate(512, 230);
-    ctx.fillStyle = '#b91c1c';
-    ctx.strokeStyle = '#fef08a';
+    ctx.translate(512, 200);
+    ctx.fillStyle = "#991b1b";
+    ctx.strokeStyle = "#fde047";
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.roundRect(-310, -65, 620, 125, 22);
+    ctx.roundRect(-320, -62, 640, 120, 24);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 58px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('WNI SIMULATOR', 0, -2);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '900 56px "Segoe UI", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText("WNI SIMULATOR", 0, -4);
 
-    ctx.fillStyle = '#fde047';
-    ctx.font = '700 26px "Segoe UI", sans-serif';
-    ctx.fillText('KERJA KERAS, KENA PAJAK, TETAP SENYUM', 0, 40);
+    ctx.fillStyle = "#fde047";
+    ctx.font = '700 24px "Segoe UI", sans-serif';
+    ctx.fillText("KERJA KERAS • BAYAR PAJAK • TETAP SANTUY", 0, 36);
     ctx.restore();
 
-    this._gambarSlotKartu(ctx, 270, 770, 'KARTU TAKDIR', '#ca8a04');
-    this._gambarSlotKartu(ctx, 754, 770, 'KARTU MUSIBAH', '#dc2626');
+    this._gambarSlotKartu(ctx, 270, 790, "KARTU TAKDIR", "#eab308");
+    this._gambarSlotKartu(ctx, 754, 790, "KARTU MUSIBAH", "#ef4444");
 
     return canvas;
   }
@@ -211,115 +235,235 @@ export class Board3D {
   _gambarSlotKartu(ctx, cx, cy, label, color) {
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
     ctx.strokeStyle = color;
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.roundRect(-140, -85, 280, 170, 16);
+    ctx.roundRect(-145, -82, 290, 164, 18);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = color;
-    ctx.font = '800 28px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(label, 0, 8);
+    ctx.font = '800 27px "Segoe UI", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText(label, 0, 9);
     ctx.restore();
   }
 
-  _bangunPetaIndonesia3D() {
-    const islandMat = new THREE.MeshStandardMaterial({
+  _bangunPetaIndonesiaOrganik() {
+    const landMat = new THREE.MeshStandardMaterial({
+      color: 0x16a34a,
+      roughness: 0.5,
+      metalness: 0.08,
+    });
+    const highlandMat = new THREE.MeshStandardMaterial({
       color: 0x15803d,
-      roughness: 0.65,
-      metalness: 0.05
+      roughness: 0.55,
     });
-    const mountainMat = new THREE.MeshStandardMaterial({
-      color: 0x166534,
-      roughness: 0.7
+    const volcanoMat = new THREE.MeshStandardMaterial({
+      color: 0x065f46,
+      roughness: 0.6,
+    });
+    const lavaMat = new THREE.MeshBasicMaterial({
+      color: 0xf97316,
     });
 
-    const islands = [
-      [
-        [-5.6, -1.6],
-        [-4.9, -2.0],
-        [-2.7, 0.3],
-        [-3.2, 0.9],
-        [-5.4, -1.0]
-      ],
-      [
-        [-2.5, 1.3],
-        [0.6, 1.5],
-        [0.7, 2.0],
-        [-2.4, 1.8]
-      ],
-      [
-        [-1.8, -1.5],
-        [0.4, -1.7],
-        [0.7, -0.1],
-        [-0.5, 0.4],
-        [-1.9, -0.3]
-      ],
-      [
-        [1.3, -1.2],
-        [2.4, -1.0],
-        [1.9, 0.5],
-        [1.1, 0.3]
-      ],
-      [
-        [1.0, 1.6],
-        [2.8, 1.7],
-        [2.8, 2.0],
-        [1.0, 1.9]
-      ],
-      [
-        [3.4, -0.7],
-        [5.6, -0.3],
-        [5.8, 0.8],
-        [4.1, 0.7],
-        [3.3, 0.1]
-      ]
-    ];
+    const buatPulauOrganik = (kontrolPoints, ketebalan = 0.22) => {
+      const vec2Points = kontrolPoints.map(
+        ([px, pz]) => new THREE.Vector2(px, pz),
+      );
+      const spline = new THREE.SplineCurve(vec2Points);
+      const smoothPts = spline.getPoints(48);
 
-    for (const pts of islands) {
-      const shape = new THREE.Shape();
-      shape.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) {
-        shape.lineTo(pts[i][0], pts[i][1]);
-      }
+      const shape = new THREE.Shape(smoothPts);
       shape.closePath();
 
-      const geo = new THREE.ExtrudeGeometry(shape, {
-        depth: 0.18,
-        bevelEnabled: true,
-        bevelThickness: 0.04,
-        bevelSize: 0.04,
-        bevelSegments: 1
+      const glowGeo = new THREE.ShapeGeometry(shape);
+      glowGeo.rotateX(Math.PI / 2);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.42,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
-      geo.rotateX(Math.PI / 2);
+      this.coastGlowMaterials.push(glowMat);
+      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+      glowMesh.scale.set(1.07, 1, 1.07);
+      glowMesh.position.y = 0.27;
+      this.archipelagoGroup.add(glowMesh);
 
-      const mesh = new THREE.Mesh(geo, islandMat);
-      mesh.position.y = 0.4;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.boardGroup.add(mesh);
-    }
+      const extrudeGeo = new THREE.ExtrudeGeometry(shape, {
+        depth: ketebalan,
+        bevelEnabled: true,
+        bevelThickness: 0.06,
+        bevelSize: 0.06,
+        bevelSegments: 4,
+        curveSegments: 32,
+      });
+      extrudeGeo.rotateX(Math.PI / 2);
 
-    const coneGeo = new THREE.ConeGeometry(0.28, 0.45, 6);
-    const volcanoPositions = [
-      [-4.1, -0.5],
-      [-0.8, 1.65],
-      [0.1, 1.72],
-      [-0.6, -0.7],
-      [4.6, 0.2]
+      const islandMesh = new THREE.Mesh(extrudeGeo, landMat);
+      islandMesh.position.y = 0.28 + ketebalan;
+      islandMesh.castShadow = true;
+      islandMesh.receiveShadow = true;
+      this.archipelagoGroup.add(islandMesh);
+    };
+
+    buatPulauOrganik(
+      [
+        [-5.9, -1.8],
+        [-5.2, -2.1],
+        [-4.1, -1.2],
+        [-3.0, -0.1],
+        [-2.5, 0.7],
+        [-3.1, 1.1],
+        [-4.3, 0.2],
+        [-5.5, -0.9],
+        [-5.9, -1.8],
+      ],
+      0.24,
+    );
+
+    buatPulauOrganik(
+      [
+        [-2.3, 1.35],
+        [-1.2, 1.42],
+        [0.1, 1.52],
+        [0.95, 1.62],
+        [0.85, 2.02],
+        [-0.4, 1.92],
+        [-1.7, 1.82],
+        [-2.4, 1.65],
+        [-2.3, 1.35],
+      ],
+      0.22,
+    );
+
+    buatPulauOrganik(
+      [
+        [-2.0, -0.7],
+        [-1.5, -1.6],
+        [-0.2, -1.85],
+        [0.65, -1.4],
+        [0.75, -0.3],
+        [0.2, 0.45],
+        [-0.9, 0.4],
+        [-1.85, 0.05],
+        [-2.0, -0.7],
+      ],
+      0.25,
+    );
+
+    buatPulauOrganik(
+      [
+        [1.2, -1.1],
+        [2.2, -1.35],
+        [2.35, -0.85],
+        [1.65, -0.45],
+        [2.25, 0.1],
+        [1.95, 0.65],
+        [1.45, 0.55],
+        [1.15, -0.2],
+        [1.2, -1.1],
+      ],
+      0.22,
+    );
+
+    buatPulauOrganik(
+      [
+        [1.2, 1.65],
+        [1.85, 1.68],
+        [2.1, 1.95],
+        [1.25, 1.92],
+        [1.2, 1.65],
+      ],
+      0.18,
+    );
+    buatPulauOrganik(
+      [
+        [2.25, 1.72],
+        [3.1, 1.76],
+        [3.15, 2.02],
+        [2.3, 1.98],
+        [2.25, 1.72],
+      ],
+      0.18,
+    );
+
+    buatPulauOrganik(
+      [
+        [2.75, -0.8],
+        [3.2, -0.65],
+        [3.15, 0.05],
+        [2.7, -0.1],
+        [2.75, -0.8],
+      ],
+      0.18,
+    );
+
+    buatPulauOrganik(
+      [
+        [3.45, -0.55],
+        [4.2, -0.85],
+        [5.4, -0.45],
+        [5.95, 0.35],
+        [5.75, 1.15],
+        [4.6, 0.95],
+        [3.95, 0.35],
+        [3.4, -0.1],
+        [3.45, -0.55],
+      ],
+      0.26,
+    );
+
+    const volcanoList = [
+      { x: -4.6, z: -0.9, scale: 1.0 },
+      { x: -3.2, z: 0.4, scale: 0.85 },
+      { x: -1.6, z: 1.65, scale: 0.9 },
+      { x: -0.5, z: 1.72, scale: 1.1 },
+      { x: 0.45, z: 1.78, scale: 1.05 },
+      { x: -0.6, z: -0.7, scale: 0.95 },
+      { x: 1.6, z: -0.2, scale: 0.9 },
+      { x: 4.9, z: 0.35, scale: 1.25 },
     ];
-    for (const [vx, vz] of volcanoPositions) {
-      const cone = new THREE.Mesh(coneGeo, mountainMat);
-      cone.position.set(vx, 0.55, vz);
+
+    const coneGeo = new THREE.ConeGeometry(0.28, 0.52, 20);
+    const craterGeo = new THREE.CylinderGeometry(0.07, 0.05, 0.06, 16);
+
+    for (const v of volcanoList) {
+      const mGroup = new THREE.Group();
+      mGroup.position.set(v.x, 0.5, v.z);
+      mGroup.scale.setScalar(v.scale);
+
+      const cone = new THREE.Mesh(coneGeo, volcanoMat);
+      cone.position.y = 0.22;
       cone.castShadow = true;
-      this.boardGroup.add(cone);
+      mGroup.add(cone);
+
+      const crater = new THREE.Mesh(craterGeo, lavaMat);
+      crater.position.y = 0.47;
+      mGroup.add(crater);
+
+      const hill = new THREE.Mesh(
+        new THREE.ConeGeometry(0.42, 0.24, 20),
+        highlandMat,
+      );
+      hill.position.set(0.12, 0.1, 0.08);
+      mGroup.add(hill);
+
+      this.archipelagoGroup.add(mGroup);
     }
   }
 
-  _bangun40Petak() {
+  _bangun40PetakHidup() {
+    const poleMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      metalness: 0.8,
+      roughness: 0.2,
+    });
+
     for (let i = 0; i < 40; i++) {
       const tile = BOARD_TILES[i];
       const coord = this.tileCoordinates[i];
@@ -328,85 +472,198 @@ export class Board3D {
       const d = 2.5;
       const h = coord.height;
 
-      const texCanvas = this._buatTeksturPetak(tile, coord.isCorner);
+      const texCanvas = this._buatTeksturPetakHidup(tile, coord.isCorner);
       const tex = new THREE.CanvasTexture(texCanvas);
       tex.anisotropy = 4;
 
       const sideMat = new THREE.MeshStandardMaterial({
-        color: 0x334155,
-        roughness: 0.65
+        color: coord.isCorner ? 0x1e293b : 0x334155,
+        roughness: 0.65,
       });
       const topMat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: 0.45,
-        metalness: 0.08
+        roughness: tile.tipe === "TRANSPORT" ? 0.75 : 0.48,
+        metalness: 0.08,
       });
 
       const geo = new THREE.BoxGeometry(w, h, d);
-      const mesh = new THREE.Mesh(geo, [sideMat, sideMat, topMat, sideMat, sideMat, sideMat]);
+      const mesh = new THREE.Mesh(geo, [
+        sideMat,
+        sideMat,
+        topMat,
+        sideMat,
+        sideMat,
+        sideMat,
+      ]);
       mesh.position.set(coord.x, h / 2, coord.z);
       mesh.rotation.y = coord.rotY;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData = { tileIndex: i };
 
-      if (tile.tipe === 'PROPERTY') {
-        const barGeo = new THREE.BoxGeometry(w * 0.94, 0.1, 0.48);
+      // Pita grup warna timbul 3D dengan bevel bingkai rapi untuk petak PROPERTY
+      if (tile.tipe === "PROPERTY") {
+        const barH = coord.colorBarHeight; // 0.10
+        const barGeo = new THREE.BoxGeometry(w * 0.95, barH, 0.56);
         const barMat = new THREE.MeshStandardMaterial({
           color: tile.warna,
           roughness: 0.35,
-          metalness: 0.15
+          metalness: 0.12,
         });
         const barMesh = new THREE.Mesh(barGeo, barMat);
-        barMesh.position.set(0, h / 2 + 0.05, -d / 2 + 0.28);
+        // Tempatkan tepat di atas permukaan petak (h/2 + barH/2)
+        barMesh.position.set(0, h / 2 + barH / 2, -d / 2 + 0.31);
         barMesh.castShadow = true;
+        barMesh.receiveShadow = true;
         mesh.add(barMesh);
       }
 
-      const ownerRingGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.06, 12);
-      const ownerRingMat = new THREE.MeshStandardMaterial({
+      // PENGGANTI KEPING BULAT:
+      // Sabuk Cahaya Pemilik di bibir depan petak + Tiang Plang Sertifikat 3D di pojok kanan depan
+      // (Tidak lagi menutupi tulisan harga Rp di tengah petak!)
+      const ownerBadgeGroup = new THREE.Group();
+      const ownerColorMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        roughness: 0.3
+        emissive: 0xffffff,
+        emissiveIntensity: 0.35,
+        roughness: 0.25,
+        metalness: 0.2,
       });
-      const ownerBadge = new THREE.Mesh(ownerRingGeo, ownerRingMat);
-      ownerBadge.position.set(0, h / 2 + 0.03, d / 2 - 0.24);
-      ownerBadge.visible = false;
-      mesh.add(ownerBadge);
+
+      // 1. Sabuk Lis Depan Berwarna Pemilik
+      const frontTrim = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.94, 0.08, 0.1),
+        ownerColorMat,
+      );
+      frontTrim.position.set(0, h / 2 + 0.04, d / 2 - 0.08);
+      ownerBadgeGroup.add(frontTrim);
+
+      // 2. Tiang Plang Sertifikat 3D di Sudut Kanan Kavling
+      const signPole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.022, 0.028, 0.42, 10),
+        poleMat,
+      );
+      signPole.position.set(w / 2 - 0.2, h / 2 + 0.21, d / 2 - 0.22);
+      signPole.castShadow = true;
+      ownerBadgeGroup.add(signPole);
+
+      const signBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.16, 0.04),
+        ownerColorMat,
+      );
+      signBoard.position.set(w / 2 - 0.28, h / 2 + 0.34, d / 2 - 0.22);
+      signBoard.castShadow = true;
+      ownerBadgeGroup.add(signBoard);
+
+      ownerBadgeGroup.visible = false;
+      ownerBadgeGroup.userData.ownerMat = ownerColorMat;
+      mesh.add(ownerBadgeGroup);
 
       this.boardGroup.add(mesh);
-      this.tileMeshes.push({ mesh, ownerBadge });
+      this.tileMeshes.push({
+        mesh,
+        ownerBadge: ownerBadgeGroup,
+        ownerMat: ownerColorMat,
+        topTex: tex,
+        sideMat,
+        topMat,
+        geo,
+      });
     }
   }
 
-  _buatTeksturPetak(tile, isCorner) {
-    const canvas = document.createElement('canvas');
+  _buatTeksturPetakHidup(tile, isCorner) {
+    const canvas = document.createElement("canvas");
     canvas.width = 256;
     canvas.height = 360;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
-    ctx.fillStyle = isCorner ? '#1e293b' : '#f8fafc';
-    ctx.fillRect(0, 0, 256, 360);
+    if (tile.tipe === "PROPERTY") {
+      ctx.fillStyle = "#ecfdf5";
+      ctx.fillRect(0, 0, 256, 360);
 
-    ctx.strokeStyle = '#0f172a';
+      ctx.fillStyle = "rgba(22, 163, 74, 0.16)";
+      for (let g = 0; g < 90; g++) {
+        const gx = ((g * 37) % 240) + 8;
+        const gy = ((g * 73) % 240) + 95;
+        ctx.fillRect(gx, gy, 4, 9);
+      }
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.fillRect(18, 96, 220, 190);
+    } else if (tile.tipe === "TRANSPORT") {
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(0, 0, 256, 360);
+      ctx.fillStyle = "rgba(148, 163, 184, 0.12)";
+      for (let a = 0; a < 120; a++) {
+        ctx.fillRect((a * 53) % 250, (a * 41) % 350, 3, 3);
+      }
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 6;
+      ctx.setLineDash([18, 14]);
+      ctx.beginPath();
+      ctx.moveTo(24, 95);
+      ctx.lineTo(24, 345);
+      ctx.moveTo(232, 95);
+      ctx.lineTo(232, 345);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (
+      tile.tipe === "DISASTER" ||
+      tile.tipe === "PUNGLI" ||
+      tile.tipe === "CONFISCATION"
+    ) {
+      ctx.fillStyle = "#271712";
+      ctx.fillRect(0, 0, 256, 360);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.22)";
+      ctx.lineWidth = 3;
+      for (let c = 0; c < 12; c++) {
+        ctx.beginPath();
+        ctx.moveTo((c * 29) % 256, 90);
+        ctx.lineTo((c * 67) % 256, 350);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = isCorner ? "#0f172a" : "#f1f5f9";
+      ctx.fillRect(0, 0, 256, 360);
+      ctx.strokeStyle = isCorner
+        ? "rgba(148, 163, 184, 0.15)"
+        : "rgba(15, 23, 42, 0.08)";
+      ctx.lineWidth = 2;
+      for (let u = 90; u < 360; u += 36) {
+        ctx.beginPath();
+        ctx.moveTo(0, u);
+        ctx.lineTo(256, u);
+        ctx.stroke();
+      }
+    }
+
+    ctx.strokeStyle = "#0f172a";
     ctx.lineWidth = 8;
     ctx.strokeRect(4, 4, 248, 352);
 
-    ctx.fillStyle = tile.warna || '#475569';
-    ctx.fillRect(8, 8, 240, isCorner ? 95 : 78);
+    ctx.fillStyle = tile.warna || "#475569";
+    ctx.fillRect(8, 8, 240, isCorner ? 95 : 80);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.font = '800 22px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
+    ctx.textAlign = "center";
     ctx.fillText(`#${tile.index}`, 128, isCorner ? 42 : 36);
 
-    ctx.fillStyle = isCorner ? '#fef08a' : '#0f172a';
+    const isDarkBg =
+      isCorner ||
+      tile.tipe === "TRANSPORT" ||
+      tile.tipe === "DISASTER" ||
+      tile.tipe === "PUNGLI" ||
+      tile.tipe === "CONFISCATION";
+
+    ctx.fillStyle = isDarkBg ? "#fef08a" : "#0f172a";
     ctx.font = '800 26px "Segoe UI", sans-serif';
-    const words = tile.nama.split(' ');
+    const words = tile.nama.split(" ");
     const lines = [];
-    let current = '';
+    let current = "";
     for (const w of words) {
       const test = current ? `${current} ${w}` : w;
-      if (ctx.measureText(test).width > 215) {
+      if (ctx.measureText(test).width > 210) {
         lines.push(current);
         current = w;
       } else {
@@ -415,27 +672,26 @@ export class Board3D {
     }
     if (current) lines.push(current);
 
-    let startY = isCorner ? 160 : 145;
+    let startY = isCorner ? 162 : 148;
     for (const line of lines) {
       ctx.fillText(line, 128, startY);
       startY += 32;
     }
 
-    ctx.font = '700 24px "Segoe UI", sans-serif';
-    ctx.fillStyle = isCorner ? '#cbd5e1' : '#b91c1c';
+    ctx.font = '800 24px "Segoe UI", sans-serif';
     if (tile.harga) {
+      ctx.fillStyle = isDarkBg ? "#4ade80" : "#b91c1c";
       const ribu = Math.round(tile.harga / 1000);
-      ctx.fillText(`Rp ${ribu} Rb`, 128, 315);
+      ctx.fillText(`Rp ${ribu} Rb`, 128, 318);
     } else {
-      ctx.fillStyle = isCorner ? '#38bdf8' : '#475569';
+      ctx.fillStyle = isDarkBg ? "#38bdf8" : "#475569";
       ctx.font = '700 20px "Segoe UI", sans-serif';
-      ctx.fillText(tile.tipe, 128, 315);
+      ctx.fillText(tile.tipe, 128, 318);
     }
 
     return canvas;
   }
 
-  // Sel Lapas Cipinang 3D di petak #10 dengan Pintu Besi Berengsel yang bisa membuka & menutup
   _bangunSelLapas3D() {
     const coord = this.tileCoordinates[10];
     const jailGroup = new THREE.Group();
@@ -444,57 +700,49 @@ export class Board3D {
     const barMat = new THREE.MeshStandardMaterial({
       color: 0x94a3b8,
       metalness: 0.78,
-      roughness: 0.25
+      roughness: 0.25,
     });
 
     const doorBarMat = new THREE.MeshStandardMaterial({
-      color: 0xcbd5e1,
+      color: 0xe2e8f0,
       metalness: 0.85,
-      roughness: 0.2
+      roughness: 0.2,
     });
 
-    // Atap kerangkeng
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.09, 1.56), barMat);
-    roof.position.y = 1.28;
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.1, 1.58), barMat);
+    roof.position.y = 1.32;
     jailGroup.add(roof);
 
-    const barGeo = new THREE.CylinderGeometry(0.036, 0.036, 1.28, 6);
+    const barGeo = new THREE.CylinderGeometry(0.036, 0.036, 1.32, 12);
     const barOffsets = [-0.66, -0.22, 0.22, 0.66];
 
-    // Sisi belakang (-Z), kiri (-X), dan kanan (+X) tetap statis
     for (const ox of barOffsets) {
-      // Belakang (-Z)
       const backBar = new THREE.Mesh(barGeo, barMat);
-      backBar.position.set(ox, 0.64, -0.66);
+      backBar.position.set(ox, 0.66, -0.66);
       jailGroup.add(backBar);
 
-      // Kiri (-X) & Kanan (+X)
       for (const sideX of [-0.66, 0.66]) {
         const sideBar = new THREE.Mesh(barGeo, barMat);
-        sideBar.position.set(sideX, 0.64, ox);
+        sideBar.position.set(sideX, 0.66, ox);
         jailGroup.add(sideBar);
       }
     }
 
-    // Sisi depan (+Z) dijadikan Pintu Sel Berengsel di sudut kiri depan (-0.66, 0, +0.66)
     this.jailDoorPivot = new THREE.Group();
     this.jailDoorPivot.position.set(-0.66, 0, 0.66);
 
-    // Palang horizontal pintu sel
     const railGeo = new THREE.BoxGeometry(1.32, 0.06, 0.06);
     const topRail = new THREE.Mesh(railGeo, doorBarMat);
-    topRail.position.set(0.66, 1.15, 0);
+    topRail.position.set(0.66, 1.18, 0);
     this.jailDoorPivot.add(topRail);
 
     const bottomRail = new THREE.Mesh(railGeo, doorBarMat);
     bottomRail.position.set(0.66, 0.15, 0);
     this.jailDoorPivot.add(bottomRail);
 
-    // Jeruji vertikal pada pintu sel
-    const doorBarPositions = [0.22, 0.66, 1.1, 1.32];
-    for (const dx of doorBarPositions) {
+    for (const dx of [0.22, 0.66, 1.1, 1.32]) {
       const dBar = new THREE.Mesh(barGeo, doorBarMat);
-      dBar.position.set(dx, 0.64, 0);
+      dBar.position.set(dx, 0.66, 0);
       this.jailDoorPivot.add(dBar);
     }
 
@@ -502,14 +750,12 @@ export class Board3D {
     this.boardGroup.add(jailGroup);
   }
 
-  // Buka pintu sel Lapas sebelum token dimasukkan
   openJailDoorImmediate() {
     if (!this.jailDoorPivot) return;
     gsap.killTweensOf(this.jailDoorPivot.rotation);
-    this.jailDoorPivot.rotation.y = -Math.PI * 0.68;
+    this.jailDoorPivot.rotation.y = -Math.PI * 0.72;
   }
 
-  // Animasi pintu sel Lapas menutup keras
   animateJailDoorClose() {
     return new Promise((resolve) => {
       if (!this.jailDoorPivot) {
@@ -518,14 +764,14 @@ export class Board3D {
       }
       gsap.to(this.jailDoorPivot.rotation, {
         y: 0,
-        duration: 0.32,
-        ease: 'bounce.out',
-        onComplete: () => resolve()
+        duration: 0.36,
+        ease: "bounce.out",
+        onComplete: () => resolve(),
       });
     });
   }
 
-  _bangunDekorasiInstanced() {
+  _bangunDekorasiPohonSmooth() {
     const treePositions = [
       [-6.3, -6.3],
       [6.3, -6.3],
@@ -534,205 +780,712 @@ export class Board3D {
       [-6.3, 0],
       [6.3, 0],
       [0, -6.3],
-      [0, 6.3]
+      [0, 6.3],
+      [-3.5, -5.8],
+      [3.5, -5.8],
+      [-3.5, 5.8],
+      [3.5, 5.8],
     ];
 
-    const trunkGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.45, 6);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
-    const crownGeo = new THREE.ConeGeometry(0.38, 0.85, 7);
-    const crownMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+    const count = treePositions.length;
+    const trunkGeo = new THREE.CylinderGeometry(0.07, 0.14, 0.48, 16);
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0x5c2d0c,
+      roughness: 0.75,
+    });
 
-    const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, treePositions.length);
-    const crownInst = new THREE.InstancedMesh(crownGeo, crownMat, treePositions.length);
-    trunkInst.castShadow = true;
-    crownInst.castShadow = true;
+    const foliage1Geo = new THREE.ConeGeometry(0.44, 0.52, 20);
+    const foliage1Mat = new THREE.MeshStandardMaterial({
+      color: 0x15803d,
+      roughness: 0.5,
+    });
+
+    const foliage2Geo = new THREE.ConeGeometry(0.35, 0.46, 20);
+    const foliage2Mat = new THREE.MeshStandardMaterial({
+      color: 0x16a34a,
+      roughness: 0.48,
+    });
+
+    const foliage3Geo = new THREE.ConeGeometry(0.24, 0.38, 20);
+    const foliage3Mat = new THREE.MeshStandardMaterial({
+      color: 0x22c55e,
+      roughness: 0.45,
+    });
+
+    const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, count);
+    const f1Inst = new THREE.InstancedMesh(foliage1Geo, foliage1Mat, count);
+    const f2Inst = new THREE.InstancedMesh(foliage2Geo, foliage2Mat, count);
+    const f3Inst = new THREE.InstancedMesh(foliage3Geo, foliage3Mat, count);
+
+    [trunkInst, f1Inst, f2Inst, f3Inst].forEach((inst) => {
+      inst.castShadow = true;
+      inst.receiveShadow = true;
+      this.boardGroup.add(inst);
+    });
 
     const dummy = new THREE.Object3D();
     treePositions.forEach(([tx, tz], idx) => {
+      const s = 0.92 + (idx % 3) * 0.1;
+
+      dummy.scale.setScalar(s);
       dummy.position.set(tx, 0.42, tz);
-      dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       trunkInst.setMatrixAt(idx, dummy.matrix);
 
-      dummy.position.set(tx, 0.95, tz);
+      dummy.position.set(tx, 0.72 * s, tz);
       dummy.updateMatrix();
-      crownInst.setMatrixAt(idx, dummy.matrix);
-    });
+      f1Inst.setMatrixAt(idx, dummy.matrix);
 
-    this.boardGroup.add(trunkInst);
-    this.boardGroup.add(crownInst);
+      dummy.position.set(tx, 0.98 * s, tz);
+      dummy.updateMatrix();
+      f2Inst.setMatrixAt(idx, dummy.matrix);
+
+      dummy.position.set(tx, 1.22 * s, tz);
+      dummy.updateMatrix();
+      f3Inst.setMatrixAt(idx, dummy.matrix);
+    });
   }
 
-  _bangunInstancedBangunan() {
-    // Geometri rumah 3D (kotak dengan atap limas melalui Cylinder 4 sisi atau Box)
-    const houseGeo = new THREE.BoxGeometry(0.3, 0.32, 0.3);
-    const houseMat = new THREE.MeshStandardMaterial({
-      color: 0x22c55e,
+  // Tekstur Fasad Rumah Villa Tropis (512x512 digambar sinkron agar tajam & instan di Frame 1)
+  _buatTeksturDindingRumah() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+
+    // Dinding krem hangat modern
+    ctx.fillStyle = "#fffbeb";
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Pilar batu pojok kiri & kanan
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillRect(0, 0, 38, 512);
+    ctx.fillRect(474, 0, 38, 512);
+
+    // Sabuk batu alam bawah & lis plafon atas
+    ctx.fillStyle = "#475569";
+    ctx.fillRect(0, 430, 512, 82);
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillRect(0, 0, 512, 34);
+
+    // Pintu Utama Kayu Jati di Tengah + Kanopi
+    ctx.fillStyle = "#451a03";
+    ctx.fillRect(190, 210, 132, 290);
+    ctx.fillStyle = "#78350f";
+    ctx.fillRect(202, 222, 108, 270);
+    // Panel ukiran pintu & gagang emas
+    ctx.strokeStyle = "#92400e";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(216, 240, 80, 100);
+    ctx.strokeRect(216, 360, 80, 110);
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.arc(292, 355, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Jendela Kaca Menyala Kiri & Kanan
+    const drawWindow = (wx, wy) => {
+      // Bingkai kayu luar
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(wx, wy, 116, 150);
+      // Kaca kuning hangat bercahaya
+      const grad = ctx.createLinearGradient(wx, wy, wx, wy + 150);
+      grad.addColorStop(0, "#fef08a");
+      grad.addColorStop(1, "#f59e0b");
+      ctx.fillStyle = grad;
+      ctx.fillRect(wx + 12, wy + 12, 92, 126);
+      // Palang jendela
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(wx + 54, wy + 12, 8, 126);
+      ctx.fillRect(wx + 12, wy + 71, 92, 8);
+      // Ambang jendela bawah
+      ctx.fillStyle = "#64748b";
+      ctx.fillRect(wx - 8, wy + 146, 132, 16);
+    };
+
+    drawWindow(52, 150);
+    drawWindow(344, 150);
+
+    // Ventilasi bovenlight di atas pintu
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(196, 148, 120, 44);
+    ctx.fillStyle = "#bae6fd";
+    ctx.fillRect(204, 156, 104, 28);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // Tekstur Genteng Atap Rumah (512x512) agar atap memiliki garis-garis genteng yang jelas
+  _buatTeksturGentengAtap() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Garis horizontal & lengkungan genteng
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.28)";
+    ctx.lineWidth = 6;
+    for (let y = 32; y < 512; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(512, y);
+      ctx.stroke();
+
+      for (let x = 0; x < 512; x += 48) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + 40);
+        ctx.stroke();
+      }
+    }
+
+    // Lisplank putih tegas di tepi bawah atap
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 476, 512, 36);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // Tekstur Fasad Kaca Hotel Sultan (512x512)
+  _buatTeksturFasadHotel() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Bingkai pilar emas megah
+    ctx.fillStyle = "#eab308";
+    for (let x = 0; x <= 480; x += 120) {
+      ctx.fillRect(x, 0, 28, 512);
+    }
+    for (let y = 0; y <= 480; y += 84) {
+      ctx.fillRect(0, y, 512, 18);
+    }
+
+    // Jendela suite hotel bercahaya biru langit & emas
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 4; col++) {
+        const wx = 34 + col * 120;
+        const wy = 24 + row * 84;
+        const isGoldSuite = (row + col) % 3 === 0;
+        ctx.fillStyle = isGoldSuite ? "#fef08a" : "#38bdf8";
+        ctx.fillRect(wx, wy, 80, 54);
+      }
+    }
+
+    // Pintu Lobi Grand Ballroom di lantai dasar
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(130, 412, 252, 100);
+    ctx.fillStyle = "#fef08a";
+    ctx.fillRect(150, 428, 212, 84);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  _bangunInstancedArsitekturMegah() {
+    const houseWallTex = this._buatTeksturDindingRumah();
+    const roofTileTex = this._buatTeksturGentengAtap();
+    const hotelWallTex = this._buatTeksturFasadHotel();
+
+    // =========================================================================
+    // 1. KOMPONEN RUMAH VILLA TROPIS (4 InstancedMesh)
+    // =========================================================================
+    // a) Fondasi Batu (Plinth) di bawah rumah agar berdiri gagah di atas pita warna
+    const hFoundGeo = new THREE.BoxGeometry(0.38, 0.06, 0.38);
+    const hFoundMat = new THREE.MeshStandardMaterial({
+      color: 0x334155,
+      roughness: 0.7,
+      metalness: 0.2,
+    });
+    this.houseFoundationInst = new THREE.InstancedMesh(
+      hFoundGeo,
+      hFoundMat,
+      this.maxHouses,
+    );
+    this.houseFoundationInst.castShadow = true;
+    this.houseFoundationInst.receiveShadow = true;
+
+    // b) Dinding Utama Rumah bertekstur jendela & pintu
+    const hWallGeo = new THREE.BoxGeometry(0.32, 0.26, 0.3);
+    const hWallMat = new THREE.MeshStandardMaterial({
+      map: houseWallTex,
       roughness: 0.35,
-      metalness: 0.15
+      metalness: 0.08,
     });
-    this.houseInstancedMesh = new THREE.InstancedMesh(houseGeo, houseMat, this.maxHouses);
-    this.houseInstancedMesh.castShadow = true;
-    this.houseInstancedMesh.receiveShadow = true;
+    this.houseWallInst = new THREE.InstancedMesh(
+      hWallGeo,
+      hWallMat,
+      this.maxHouses,
+    );
+    this.houseWallInst.castShadow = true;
+    this.houseWallInst.receiveShadow = true;
 
-    const hotelGeo = new THREE.CylinderGeometry(0.25, 0.32, 0.66, 6);
-    const hotelMat = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
+    // c) Teras / Jendela Bay Timbul Bercahaya Hangat
+    const hPorchGeo = new THREE.BoxGeometry(0.35, 0.12, 0.16);
+    const hPorchMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.45,
       roughness: 0.25,
-      metalness: 0.45
     });
-    this.hotelInstancedMesh = new THREE.InstancedMesh(hotelGeo, hotelMat, this.maxHotels);
-    this.hotelInstancedMesh.castShadow = true;
-    this.hotelInstancedMesh.receiveShadow = true;
+    this.housePorchInst = new THREE.InstancedMesh(
+      hPorchGeo,
+      hPorchMat,
+      this.maxHouses,
+    );
+    this.housePorchInst.castShadow = true;
 
-    const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+    // d) Atap Genteng Lebar (Overhang Tritisan)
+    const hRoofGeo = new THREE.ConeGeometry(0.32, 0.24, 4);
+    hRoofGeo.rotateY(Math.PI / 4);
+    const hRoofMat = new THREE.MeshStandardMaterial({
+      map: roofTileTex,
+      color: 0xffffff,
+      roughness: 0.4,
+      metalness: 0.1,
+    });
+    this.houseRoofInst = new THREE.InstancedMesh(
+      hRoofGeo,
+      hRoofMat,
+      this.maxHouses,
+    );
+    this.houseRoofInst.castShadow = true;
+
+    // =========================================================================
+    // 2. KOMPONEN HOTEL SULTAN MEGAH (4 InstancedMesh)
+    // =========================================================================
+    // a) Podium Lobi Marmer
+    const hotPodGeo = new THREE.BoxGeometry(0.62, 0.14, 0.5);
+    const hotPodMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.3,
+      metalness: 0.5,
+    });
+    this.hotelPodiumInst = new THREE.InstancedMesh(
+      hotPodGeo,
+      hotPodMat,
+      this.maxHotels,
+    );
+    this.hotelPodiumInst.castShadow = true;
+    this.hotelPodiumInst.receiveShadow = true;
+
+    // b) Menara Utama Kaca Emas
+    const hotWallGeo = new THREE.BoxGeometry(0.5, 0.68, 0.42);
+    const hotWallMat = new THREE.MeshStandardMaterial({
+      map: hotelWallTex,
+      roughness: 0.2,
+      metalness: 0.45,
+    });
+    this.hotelWallInst = new THREE.InstancedMesh(
+      hotWallGeo,
+      hotWallMat,
+      this.maxHotels,
+    );
+    this.hotelWallInst.castShadow = true;
+    this.hotelWallInst.receiveShadow = true;
+
+    // c) Mahkota Neon Emas di Puncak Gedung
+    const hotCrownGeo = new THREE.BoxGeometry(0.56, 0.08, 0.48);
+    const hotCrownMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: 0xfacc15,
+      emissiveIntensity: 0.6,
+      roughness: 0.2,
+    });
+    this.hotelCrownInst = new THREE.InstancedMesh(
+      hotCrownGeo,
+      hotCrownMat,
+      this.maxHotels,
+    );
+
+    // d) Atap Mansard Merah & Puncak Menara
+    const hotRoofGeo = new THREE.ConeGeometry(0.42, 0.32, 4);
+    hotRoofGeo.rotateY(Math.PI / 4);
+    const hotRoofMat = new THREE.MeshStandardMaterial({
+      map: roofTileTex,
+      color: 0xdc2626,
+      roughness: 0.3,
+      metalness: 0.3,
+    });
+    this.hotelRoofInst = new THREE.InstancedMesh(
+      hotRoofGeo,
+      hotRoofMat,
+      this.maxHotels,
+    );
+    this.hotelRoofInst.castShadow = true;
+
+    this._resetAllBuildingInstances();
+
+    this.boardGroup.add(
+      this.houseFoundationInst,
+      this.houseWallInst,
+      this.housePorchInst,
+      this.houseRoofInst,
+      this.hotelPodiumInst,
+      this.hotelWallInst,
+      this.hotelCrownInst,
+      this.hotelRoofInst,
+    );
+  }
+
+  _resetAllBuildingInstances() {
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let i = 0; i < this.maxHouses; i++) {
-      this.houseInstancedMesh.setMatrixAt(i, zeroMatrix);
+      this.houseFoundationInst.setMatrixAt(i, zero);
+      this.houseWallInst.setMatrixAt(i, zero);
+      this.housePorchInst.setMatrixAt(i, zero);
+      this.houseRoofInst.setMatrixAt(i, zero);
     }
     for (let i = 0; i < this.maxHotels; i++) {
-      this.hotelInstancedMesh.setMatrixAt(i, zeroMatrix);
+      this.hotelPodiumInst.setMatrixAt(i, zero);
+      this.hotelWallInst.setMatrixAt(i, zero);
+      this.hotelCrownInst.setMatrixAt(i, zero);
+      this.hotelRoofInst.setMatrixAt(i, zero);
     }
-
-    this.boardGroup.add(this.houseInstancedMesh);
-    this.boardGroup.add(this.hotelInstancedMesh);
   }
 
-  // Sinkronisasi seluruh kepemilikan tanah, rumah, dan hotel
-  // Saat tanah dibeli (level 0), 1 rumah patok kepemilikan ditampilkan di petak.
-  // Saat di-upgrade (level 1..4), ditampilkan 1..4 rumah penuh, dan level 5 = 1 Hotel.
+  // Menyusun matriks 4 komponen Rumah di ATAS permukaan pita warna (worldPos.y = buildingBaseY)
+  _setHouseCompositeMatrix(
+    index,
+    worldPos,
+    rotY,
+    scaleVec,
+    roofColorHex = 0xea580c,
+  ) {
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color(roofColorHex);
+    const baseY = worldPos.y;
+
+    // 1. Fondasi Batu (tinggi 0.06)
+    dummy.position.set(worldPos.x, baseY + 0.03 * scaleVec.y, worldPos.z);
+    dummy.rotation.set(0, rotY, 0);
+    dummy.scale.copy(scaleVec);
+    dummy.updateMatrix();
+    this.houseFoundationInst.setMatrixAt(index, dummy.matrix);
+
+    // 2. Dinding Rumah (tinggi 0.26, di atas fondasi)
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.06 + 0.13) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.updateMatrix();
+    this.houseWallInst.setMatrixAt(index, dummy.matrix);
+
+    // 3. Teras / Jendela Timbul Menyala
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.06 + 0.11) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.updateMatrix();
+    this.housePorchInst.setMatrixAt(index, dummy.matrix);
+
+    // 4. Atap Genteng Lebar (di atas dinding)
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.06 + 0.26 + 0.11) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.scale.set(scaleVec.x * 1.08, scaleVec.y, scaleVec.z * 1.08);
+    dummy.updateMatrix();
+    this.houseRoofInst.setMatrixAt(index, dummy.matrix);
+    this.houseRoofInst.setColorAt(index, color);
+  }
+
+  // Menyusun matriks 4 komponen Hotel Sultan di ATAS permukaan pita warna
+  _setHotelCompositeMatrix(index, worldPos, rotY, scaleVec) {
+    const dummy = new THREE.Object3D();
+    const baseY = worldPos.y;
+
+    // 1. Podium Lobi (tinggi 0.14)
+    dummy.position.set(worldPos.x, baseY + 0.07 * scaleVec.y, worldPos.z);
+    dummy.rotation.set(0, rotY, 0);
+    dummy.scale.copy(scaleVec);
+    dummy.updateMatrix();
+    this.hotelPodiumInst.setMatrixAt(index, dummy.matrix);
+
+    // 2. Menara Kaca Emas (tinggi 0.68)
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.14 + 0.34) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.updateMatrix();
+    this.hotelWallInst.setMatrixAt(index, dummy.matrix);
+
+    // 3. Mahkota Neon Gedung
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.14 + 0.68 + 0.04) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.updateMatrix();
+    this.hotelCrownInst.setMatrixAt(index, dummy.matrix);
+
+    // 4. Atap Puncak Hotel
+    dummy.position.set(
+      worldPos.x,
+      baseY + (0.14 + 0.68 + 0.08 + 0.15) * scaleVec.y,
+      worldPos.z,
+    );
+    dummy.updateMatrix();
+    this.hotelRoofInst.setMatrixAt(index, dummy.matrix);
+  }
+
   syncProperties(propertiesState, players) {
     const playerColorMap = {};
     for (const p of players) {
       playerColorMap[p.id] = p.warna;
     }
 
+    // Update Sabuk Pemilik & Plang Sertifikat 3D di setiap petak yang dimiliki
     for (let i = 0; i < 40; i++) {
       const prop = propertiesState[i];
-      const badge = this.tileMeshes[i].ownerBadge;
+      const tileObj = this.tileMeshes[i];
       if (prop && prop.ownerId && playerColorMap[prop.ownerId]) {
-        badge.visible = true;
-        badge.material.color.set(playerColorMap[prop.ownerId]);
+        const ownerHex = playerColorMap[prop.ownerId];
+        tileObj.ownerBadge.visible = true;
+        tileObj.ownerMat.color.set(ownerHex);
+        tileObj.ownerMat.emissive.set(ownerHex);
       } else {
-        badge.visible = false;
+        tileObj.ownerBadge.visible = false;
       }
     }
 
-    const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (let i = 0; i < this.maxHouses; i++) {
-      this.houseInstancedMesh.setMatrixAt(i, zeroMatrix);
-    }
-    for (let i = 0; i < this.maxHotels; i++) {
-      this.hotelInstancedMesh.setMatrixAt(i, zeroMatrix);
-    }
-
+    this._resetAllBuildingInstances();
     this.tileBuildingMap.clear();
-    const dummy = new THREE.Object3D();
+
     let houseIdx = 0;
     let hotelIdx = 0;
+
+    // Warna genteng berbeda yang kontras & estetik untuk tiap level rumah (Lv 1..4)
+    const levelRoofColors = [0x16a34a, 0x16a34a, 0x0284c7, 0xd97706, 0xe11d48];
 
     for (const [tileIdxStr, prop] of Object.entries(propertiesState)) {
       const tileIndex = Number(tileIdxStr);
       if (!prop || !prop.ownerId) continue;
 
+      const tile = BOARD_TILES[tileIndex];
+      if (!tile || tile.tipe !== "PROPERTY") continue;
+
       const level = prop.level || 0;
       const coord = this.tileCoordinates[tileIndex];
+      // PENTING: Gunakan buildingBaseY (tinggi petak + tinggi balok warna) agar bangunan TIDAK tenggelam!
+      const baseY = coord.buildingBaseY;
       const records = [];
 
       if (level >= 5 && hotelIdx < this.maxHotels) {
-        const localPos = new THREE.Vector3(0, coord.height + 0.33, -0.95);
+        const localPos = new THREE.Vector3(0, 0, -0.94);
         localPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), coord.rotY);
-        const worldPos = new THREE.Vector3(coord.x + localPos.x, localPos.y, coord.z + localPos.z);
+        const worldPos = new THREE.Vector3(
+          coord.x + localPos.x,
+          baseY,
+          coord.z + localPos.z,
+        );
+        const targetScale = new THREE.Vector3(1.08, 1.08, 1.08);
 
-        dummy.position.copy(worldPos);
-        dummy.rotation.set(0, coord.rotY, 0);
-        dummy.scale.set(1, 1, 1);
-        dummy.updateMatrix();
-        this.hotelInstancedMesh.setMatrixAt(hotelIdx, dummy.matrix);
-
+        this._setHotelCompositeMatrix(
+          hotelIdx,
+          worldPos,
+          coord.rotY,
+          targetScale,
+        );
         records.push({
           isHotel: true,
           instanceIndex: hotelIdx,
           worldPos,
           rotY: coord.rotY,
-          targetScale: new THREE.Vector3(1, 1, 1)
+          targetScale,
         });
         hotelIdx++;
-      } else {
-        // Jika baru beli tanah (level 0), tampilkan 1 rumah patok (skala 0.78) agar animasi "rumah naik dari bawah tanah" langsung terlihat!
-        // Jika level 1..4, tampilkan sejumlah level dengan skala penuh 1.0.
-        const count = level === 0 ? 1 : level;
-        const scaleVal = level === 0 ? 0.78 : 1.0;
-
-        for (let h = 0; h < count && houseIdx < this.maxHouses; h++) {
-          const offsetX = count === 1 ? 0 : -0.54 + h * 0.36;
-          const localPos = new THREE.Vector3(offsetX, coord.height + 0.16 * scaleVal, -0.95);
+      } else if (level >= 1 && level <= 4) {
+        for (let h = 0; h < level && houseIdx < this.maxHouses; h++) {
+          const offsetX =
+            level === 1 ? 0 : -0.54 + h * (1.08 / Math.max(1, level - 1));
+          const localPos = new THREE.Vector3(offsetX, 0, -0.94);
           localPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), coord.rotY);
-          const worldPos = new THREE.Vector3(coord.x + localPos.x, localPos.y, coord.z + localPos.z);
+          const worldPos = new THREE.Vector3(
+            coord.x + localPos.x,
+            baseY,
+            coord.z + localPos.z,
+          );
 
-          dummy.position.copy(worldPos);
-          dummy.rotation.set(0, coord.rotY, 0);
-          dummy.scale.set(scaleVal, scaleVal, scaleVal);
-          dummy.updateMatrix();
-          this.houseInstancedMesh.setMatrixAt(houseIdx, dummy.matrix);
+          const heightScale = 0.95 + h * 0.14;
+          const targetScale = new THREE.Vector3(0.95, heightScale, 0.95);
+          const roofColor = levelRoofColors[level] || 0x16a34a;
 
+          this._setHouseCompositeMatrix(
+            houseIdx,
+            worldPos,
+            coord.rotY,
+            targetScale,
+            roofColor,
+          );
           records.push({
             isHotel: false,
             instanceIndex: houseIdx,
             worldPos,
             rotY: coord.rotY,
-            targetScale: new THREE.Vector3(scaleVal, scaleVal, scaleVal)
+            targetScale,
+            roofColor,
           });
           houseIdx++;
         }
+      } else if (level === 0 && houseIdx < this.maxHouses) {
+        // Saat baru Beli Tanah (Level 0): Tampilkan 1 Paviliun Kavling Utuh di atas pita warna
+        // dengan atap berwarna sesuai pemilik (tidak lagi tenggelam!)
+        const localPos = new THREE.Vector3(-0.48, 0, -0.94);
+        localPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), coord.rotY);
+        const worldPos = new THREE.Vector3(
+          coord.x + localPos.x,
+          baseY,
+          coord.z + localPos.z,
+        );
+        const targetScale = new THREE.Vector3(0.82, 0.82, 0.82);
+        const ownerHex = playerColorMap[prop.ownerId] || 0x22c55e;
+
+        this._setHouseCompositeMatrix(
+          houseIdx,
+          worldPos,
+          coord.rotY,
+          targetScale,
+          ownerHex,
+        );
+        records.push({
+          isHotel: false,
+          instanceIndex: houseIdx,
+          worldPos,
+          rotY: coord.rotY,
+          targetScale,
+          roofColor: ownerHex,
+        });
+        houseIdx++;
       }
 
       this.tileBuildingMap.set(tileIndex, records);
     }
 
-    this.houseInstancedMesh.instanceMatrix.needsUpdate = true;
-    this.hotelInstancedMesh.instanceMatrix.needsUpdate = true;
+    this._markBuildingMatricesNeedsUpdate();
   }
 
-  // Animasi rumah/hotel naik dari bawah permukaan tanah saat Beli Tanah atau Upgrade Bangunan
+  _markBuildingMatricesNeedsUpdate() {
+    this.houseFoundationInst.instanceMatrix.needsUpdate = true;
+    this.houseWallInst.instanceMatrix.needsUpdate = true;
+    this.housePorchInst.instanceMatrix.needsUpdate = true;
+    this.houseRoofInst.instanceMatrix.needsUpdate = true;
+    if (this.houseRoofInst.instanceColor)
+      this.houseRoofInst.instanceColor.needsUpdate = true;
+
+    this.hotelPodiumInst.instanceMatrix.needsUpdate = true;
+    this.hotelWallInst.instanceMatrix.needsUpdate = true;
+    this.hotelCrownInst.instanceMatrix.needsUpdate = true;
+    this.hotelRoofInst.instanceMatrix.needsUpdate = true;
+  }
+
   animateBuildingRiseFromUnderground(tileIndex, propertiesState, players) {
     this.syncProperties(propertiesState, players);
     const records = this.tileBuildingMap.get(tileIndex);
     if (!records || records.length === 0) return Promise.resolve();
 
-    // Animasi khusus pada bangunan terbaru (elemen terakhir di petak tersebut)
     const targetRec = records[records.length - 1];
-    const dummy = new THREE.Object3D();
-    const startY = targetRec.worldPos.y - 0.65; // Mulai dari bawah permukaan tanah
-    const endY = targetRec.worldPos.y;
-    const animState = { progress: 0 };
+    const animState = { progress: 0.01 };
 
     return new Promise((resolve) => {
       gsap.to(animState, {
         progress: 1,
-        duration: 0.68,
-        ease: 'back.out(1.8)',
+        duration: 0.72,
+        ease: "elastic.out(1, 0.55)",
         onUpdate: () => {
-          const p = animState.progress;
-          const curY = startY + (endY - startY) * p;
-          dummy.position.set(targetRec.worldPos.x, curY, targetRec.worldPos.z);
-          dummy.rotation.set(0, targetRec.rotY, 0);
-          dummy.scale.set(
-            targetRec.targetScale.x * Math.min(1, p * 1.25),
+          const p = Math.max(0.01, animState.progress);
+          const curScale = new THREE.Vector3(
+            targetRec.targetScale.x * p,
             targetRec.targetScale.y * p,
-            targetRec.targetScale.z * Math.min(1, p * 1.25)
+            targetRec.targetScale.z * p,
           );
-          dummy.updateMatrix();
+          const curPos = new THREE.Vector3(
+            targetRec.worldPos.x,
+            targetRec.worldPos.y - (1 - p) * 0.25,
+            targetRec.worldPos.z,
+          );
 
           if (targetRec.isHotel) {
-            this.hotelInstancedMesh.setMatrixAt(targetRec.instanceIndex, dummy.matrix);
-            this.hotelInstancedMesh.instanceMatrix.needsUpdate = true;
+            this._setHotelCompositeMatrix(
+              targetRec.instanceIndex,
+              curPos,
+              targetRec.rotY,
+              curScale,
+            );
           } else {
-            this.houseInstancedMesh.setMatrixAt(targetRec.instanceIndex, dummy.matrix);
-            this.houseInstancedMesh.instanceMatrix.needsUpdate = true;
+            this._setHouseCompositeMatrix(
+              targetRec.instanceIndex,
+              curPos,
+              targetRec.rotY,
+              curScale,
+              targetRec.roofColor,
+            );
           }
+          this._markBuildingMatricesNeedsUpdate();
         },
-        onComplete: () => resolve()
+        onComplete: () => resolve(),
       });
+    });
+  }
+
+  shakeBoard(intensity = 0.22, duration = 1.4) {
+    this.boardShakeIntensity = intensity;
+    this.boardShakeTimer = duration;
+  }
+
+  update(elapsedTime = 0, dt = 0.016) {
+    this.archipelagoGroup.position.y = Math.sin(elapsedTime * 1.8) * 0.055;
+    const glowOpacity = 0.32 + Math.sin(elapsedTime * 2.6) * 0.12;
+    for (const mat of this.coastGlowMaterials) {
+      mat.opacity = glowOpacity;
+    }
+
+    if (this.boardShakeTimer > 0) {
+      this.boardShakeTimer -= dt;
+      const damp = Math.max(0, this.boardShakeTimer);
+      const mag = this.boardShakeIntensity * Math.min(1, damp * 1.5);
+      this.boardGroup.position.set(
+        (Math.random() - 0.5) * mag,
+        (Math.random() - 0.5) * mag * 0.5,
+        (Math.random() - 0.5) * mag,
+      );
+      this.boardGroup.rotation.z = (Math.random() - 0.5) * mag * 0.08;
+    } else if (this.boardGroup.position.lengthSq() > 0.0001) {
+      this.boardGroup.position.set(0, 0, 0);
+      this.boardGroup.rotation.set(0, 0, 0);
+    }
+  }
+
+  dispose() {
+    this.boardGroup.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((m) => {
+            if (m.map) m.map.dispose();
+            m.dispose();
+          });
+        } else {
+          if (obj.material.map) obj.material.map.dispose();
+          obj.material.dispose();
+        }
+      }
     });
   }
 }

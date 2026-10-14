@@ -1,9 +1,6 @@
-// Modul Sintesis Audio Prosedural (Web Audio API Murni - Tanpa File Eksternal)
-// Mencakup:
-// - Musik Latar Looping Gamelan Pentatonik (Laras Slendro: Saron, Bonang, Kempul, Gong Ageng)
-// - SFX: Dadu, Langkah Token, Uang Masuk, Sirine + Besi Lapas, 4 Jenis Bencana (Noise + Filter),
-//   Notifikasi "Eh" Pungli (Dua Nada Turun), Beli Tanah, Kartu Takdir/Musibah, Menang, dan Bangkrut.
-// - Kontrol Mute Music & Mute SFX terpisah + inisialisasi setelah klik pertama pemain.
+// Modul Audio Sintesis Web Audio API + Suara Narator Bahasa Indonesia (Web Speech API)
+// Menambahkan voice lines satir kreatif untuk Pungli (+ bunyi peluit "Prittt!"), Masuk Lapas,
+// Bencana Alam, Bansos, Beli Tanah, Kartu Takdir/Musibah, Sewa Lawan, dan Bangkrut.
 
 export class AudioManager {
   constructor() {
@@ -15,15 +12,72 @@ export class AudioManager {
 
     this.musicMuted = false;
     this.sfxMuted = false;
-    this.musicVolume = 0.28;
-    this.sfxVolume = 0.65;
+    this.musicVolume = 0.24;
+    this.sfxVolume = 0.7;
 
     this.isPlayingMusic = false;
     this.stepIndex = 0;
     this.musicTimer = null;
 
-    // Frekuensi nada Laras Slendro (aproksimasi pentatonik Nusantara dalam Hz)
-    // 1 (Panunggul), 2 (Gulu), 3 (Dada), 5 (Lima), 6 (Nem), 1' (Panunggul Tinggi)
+    // Daftar kalimat satir kreatif Bahasa Indonesia untuk Web Speech API
+    this.voiceLines = {
+      pungli: [
+        "Prittt! Permisi warga, ada uang keamanan lingkungan nih, mohon pengertiannya ya!",
+        "Eh, mau lewat jalur cepat? Siapkan uang rokok buat oknum petugas dulu dong!",
+        "Waduh, parkir lima menit kena ketok palu oknum! Sabar ya warga plus enam dua!",
+      ],
+      jail: [
+        "Wiu wiu! Terciduk razia gabungan! Silakan menginap dan renungi nasib di Lapas Cipinang!",
+        "Jangan coba-coba pakai orang dalam! Masuk sel Lapas Cipinang lewat pintu depan sekarang!",
+        "Digelandang ke Lapas Cipinang! Nikmati nasi cadong sampai dapat dadu kembar!",
+      ],
+      banjir: [
+        "Awas! Banjir kiriman tahunan dan gelombang air datang! Angkat jemuran dan amankan kulkas!",
+        "Waduh, saluran mampet! Air bah meluap merendam kavling warga!",
+      ],
+      gempa: [
+        "Lindungi kepala! Gempa bumi tektonik mengguncang papan Nusantara!",
+        "Guncangan gempa kuat! Pegangan tiang listrik warga!",
+      ],
+      kebakaran: [
+        "Awas gardu meledak! Kebakaran korsleting listrik melanda pemukiman!",
+        "Api berkobar! Panggil pemadam kebakaran sebelum merembet ke tetangga!",
+      ],
+      longsor: [
+        "Awas tebing runtuh! Tanah longsor menerjang petak di bawahnya!",
+      ],
+      bansos: [
+        "Alhamdulillah! Antrean lancar, dana Bansos dua ratus ribu rupiah cair utuh tanpa potongan!",
+        "Rezeki warga patuh! Lewat garis Start, Bansos cair langsung masuk kantong!",
+      ],
+      buy: [
+        "Sah! Sertifikat tanah hak milik resmi diteken, semoga bebas sengketa!",
+        "Mantap! Aset properti bertambah, siap-siap tarik uang sewa dari tetangga!",
+      ],
+      upgrade: [
+        "Tukang bangunan beraksi! Properti naik kelas, tarif sewa makin pedas!",
+        "Pembangunan selesai! Makin megah, tetangga yang mampir dijamin nangis bayar sewa!",
+      ],
+      rent: [
+        "Permisi numpang lewat! Jangan lupa bayar tagihan sewa tanah tetangga ya!",
+        "Waduh, mampir di tanah sultan! Dompet langsung terkuras bayar uang sewa!",
+      ],
+      bankrupt: [
+        "Ya ampun! Utang menumpuk, aset habis disita, warga resmi bangkrut dan gulung tikar!",
+        "Dompet kering kerontang! Selamat tinggal kerasnya kehidupan finansial plus enam dua!",
+      ],
+      takdir: [
+        "Kartu Takdir terbuka! Semoga angin keberuntungan berpihak pada warga!",
+      ],
+      musibah: [
+        "Astaga, Kartu Musibah! Siapkan mental dan dompet menghadapi ujian birokrasi!",
+      ],
+      victory: [
+        "Selamat! Anda resmi dinobatkan sebagai warga negara paling tahan banting dan makmur se-Nusantara!",
+      ],
+    };
+
+    // Frekuensi nada Laras Slendro
     this.slendro = {
       GONG: 65.41,
       KEMPUL_1: 130.81,
@@ -37,41 +91,59 @@ export class AudioManager {
       N6: 460.0,
       N1_HIGH: 523.25,
       N2_HIGH: 596.0,
-      N3_HIGH: 686.0
+      N3_HIGH: 686.0,
     };
 
-    // Pola melodi balungan Saron (16 ketuk = 1 gatra lengkap)
     this.balunganPattern = [
-      'N2', 'N3', 'N2', 'N1',
-      'N2', 'N3', 'N5', 'N6',
-      'N1_HIGH', 'N6', 'N5', 'N3',
-      'N5', 'N3', 'N2', 'N1'
+      "N2",
+      "N3",
+      "N2",
+      "N1",
+      "N2",
+      "N3",
+      "N5",
+      "N6",
+      "N1_HIGH",
+      "N6",
+      "N5",
+      "N3",
+      "N5",
+      "N3",
+      "N2",
+      "N1",
     ];
 
-    // Pola kotekan Bonang (off-beat mengisi sela ketukan)
     this.bonangPattern = [
-      'N5', 'N6', 'N5', 'N3',
-      'N6', 'N1_HIGH', 'N2_HIGH', 'N1_HIGH',
-      'N3_HIGH', 'N2_HIGH', 'N1_HIGH', 'N6',
-      'N1_HIGH', 'N6', 'N5', 'N3'
+      "N5",
+      "N6",
+      "N5",
+      "N3",
+      "N6",
+      "N1_HIGH",
+      "N2_HIGH",
+      "N1_HIGH",
+      "N3_HIGH",
+      "N2_HIGH",
+      "N1_HIGH",
+      "N6",
+      "N1_HIGH",
+      "N6",
+      "N5",
+      "N3",
     ];
 
     this._pasangAutoUnlock();
   }
 
-  // Memastikan AudioContext baru dimulai/dilanjutkan setelah klik/ketukan pertama pemain (aturan browser)
   _pasangAutoUnlock() {
     const unlock = () => {
       this.ensureContext();
-      if (!this.isPlayingMusic) {
-        this.startMusic();
-      }
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
+      if (!this.isPlayingMusic) this.startMusic();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
-
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
   }
 
   ensureContext() {
@@ -93,14 +165,12 @@ export class AudioManager {
 
       this._buatNoiseBuffer();
     }
-
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
     return this.ctx;
   }
 
-  // Membuat buffer white noise 2 detik satu kali untuk dipakai ulang oleh efek hujan/gempa/ledakan/abu
   _buatNoiseBuffer() {
     const sampleRate = this.ctx.sampleRate;
     const length = sampleRate * 2.0;
@@ -112,12 +182,60 @@ export class AudioManager {
     this.noiseBuffer = buffer;
   }
 
-  // Kontrol Mute Musik Latar
+  // =========================================================================
+  // NARATOR SUARA BAHASA INDONESIA KREATIF (WEB SPEECH API)
+  // =========================================================================
+  speak(teks, options = {}) {
+    if (this.sfxMuted) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    try {
+      // Hentikan ucapan sebelumnya agar selalu responsif terhadap event terbaru
+      window.speechSynthesis.cancel();
+
+      const utter = new SpeechSynthesisUtterance(teks);
+      utter.lang = "id-ID";
+      utter.rate = options.rate ?? 1.08;
+      utter.pitch = options.pitch ?? 1.05;
+      utter.volume = Math.min(1, (this.masterGain?.gain?.value ?? 0.85) * 1.0);
+
+      // Cari voice Bahasa Indonesia jika tersedia di browser/OS
+      const voices = window.speechSynthesis.getVoices();
+      const idVoice = voices.find(
+        (v) =>
+          v.lang.toLowerCase().includes("id") ||
+          v.name.toLowerCase().includes("indones"),
+      );
+      if (idVoice) {
+        utter.voice = idVoice;
+      }
+
+      window.speechSynthesis.speak(utter);
+    } catch (_e) {
+      // Abaikan jika browser membatasi speechSynthesis
+    }
+  }
+
+  speakEvent(category, customText = null) {
+    if (this.sfxMuted) return;
+    if (customText) {
+      this.speak(customText);
+      return;
+    }
+    const list = this.voiceLines[category];
+    if (!list || list.length === 0) return;
+    const chosen = list[Math.floor(Math.random() * list.length)];
+    this.speak(chosen);
+  }
+
   setMusicMuted(muted) {
     this.musicMuted = Boolean(muted);
     this.ensureContext();
-    const now = this.ctx.currentTime;
-    this.musicGain.gain.setTargetAtTime(this.musicMuted ? 0 : this.musicVolume, now, 0.04);
+    this.musicGain.gain.setTargetAtTime(
+      this.musicMuted ? 0 : this.musicVolume,
+      this.ctx.currentTime,
+      0.04,
+    );
     return this.musicMuted;
   }
 
@@ -125,12 +243,21 @@ export class AudioManager {
     return this.setMusicMuted(!this.musicMuted);
   }
 
-  // Kontrol Mute Efek Suara (SFX)
   setSfxMuted(muted) {
     this.sfxMuted = Boolean(muted);
     this.ensureContext();
-    const now = this.ctx.currentTime;
-    this.sfxGain.gain.setTargetAtTime(this.sfxMuted ? 0 : this.sfxVolume, now, 0.02);
+    this.sfxGain.gain.setTargetAtTime(
+      this.sfxMuted ? 0 : this.sfxVolume,
+      this.ctx.currentTime,
+      0.02,
+    );
+    if (
+      this.sfxMuted &&
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window
+    ) {
+      window.speechSynthesis.cancel();
+    }
     return this.sfxMuted;
   }
 
@@ -138,7 +265,6 @@ export class AudioManager {
     return this.setSfxMuted(!this.sfxMuted);
   }
 
-  // Mengatur volume master (0.0 - 1.0)
   setMasterVolume(val) {
     this.ensureContext();
     const clamped = Math.max(0, Math.min(1, Number(val)));
@@ -146,7 +272,7 @@ export class AudioManager {
   }
 
   // =========================================================================
-  // 1. MUSIK LATAR LOOPING GAMELAN SLENDRO
+  // MUSIK LATAR GAMELAN SLENDRO
   // =========================================================================
   startMusic() {
     this.ensureContext();
@@ -154,69 +280,66 @@ export class AudioManager {
     this.isPlayingMusic = true;
     this.stepIndex = 0;
 
-    // Tempo santai khas gamelan suasana warga (260ms per sub-ketukan)
     this.musicTimer = setInterval(() => {
-      if (!this.ctx || this.ctx.state !== 'running' || this.musicMuted) return;
+      if (!this.ctx || this.ctx.state !== "running" || this.musicMuted) return;
       this._mainkanKetukanGamelan(this.stepIndex);
       this.stepIndex = (this.stepIndex + 1) % 16;
     }, 260);
   }
 
-  stopMusic() {
-    this.isPlayingMusic = false;
-    if (this.musicTimer) {
-      clearInterval(this.musicTimer);
-      this.musicTimer = null;
-    }
-  }
-
   _mainkanKetukanGamelan(step) {
     const now = this.ctx.currentTime;
-
-    // 1. Balungan Saron pada ketukan genap (atau mengalir setiap ketuk dengan aksen)
     const saronNoteKey = this.balunganPattern[step];
     const saronFreq = this.slendro[saronNoteKey] || 261.63;
     const isStrongBeat = step % 2 === 0;
-    this._synthMetallophone(saronFreq, now, isStrongBeat ? 0.55 : 0.35, isStrongBeat ? 0.22 : 0.12, this.musicGain);
+    this._synthMetallophone(
+      saronFreq,
+      now,
+      isStrongBeat ? 0.55 : 0.35,
+      isStrongBeat ? 0.2 : 0.11,
+      this.musicGain,
+    );
 
-    // 2. Kotekan Bonang (oktaf atas, memberi warna keramaian khas Nusantara)
     if (step % 2 === 1 || step === 6 || step === 14) {
       const bonangKey = this.bonangPattern[step];
-      const bonangFreq = (this.slendro[bonangKey] || 523.25) * 1.0;
-      this._synthMetallophone(bonangFreq, now + 0.12, 0.28, 0.09, this.musicGain);
+      const bonangFreq = this.slendro[bonangKey] || 523.25;
+      this._synthMetallophone(
+        bonangFreq,
+        now + 0.12,
+        0.28,
+        0.08,
+        this.musicGain,
+      );
     }
 
-    // 3. Kempul pada ketukan ke-4, 8, dan 12
-    if (step === 4) {
-      this._synthGong(this.slendro.KEMPUL_3, now, 1.1, 0.2, this.musicGain);
-    } else if (step === 8) {
-      this._synthGong(this.slendro.KEMPUL_5, now, 1.1, 0.2, this.musicGain);
-    } else if (step === 12) {
-      this._synthGong(this.slendro.KEMPUL_6, now, 1.1, 0.2, this.musicGain);
-    }
+    if (step === 4)
+      this._synthGong(this.slendro.KEMPUL_3, now, 1.1, 0.18, this.musicGain);
+    else if (step === 8)
+      this._synthGong(this.slendro.KEMPUL_5, now, 1.1, 0.18, this.musicGain);
+    else if (step === 12)
+      this._synthGong(this.slendro.KEMPUL_6, now, 1.1, 0.18, this.musicGain);
 
-    // 4. Gong Ageng pada awal/akhir siklus 16 ketukan (step 0)
-    if (step === 0) {
-      this._synthGong(this.slendro.GONG, now, 2.4, 0.34, this.musicGain);
-    }
+    if (step === 0)
+      this._synthGong(this.slendro.GONG, now, 2.4, 0.3, this.musicGain);
   }
 
-  // Sintesis bilah perunggu Saron / Bonang (kombinasi gelombang fundamental + overtone inharmonik)
   _synthMetallophone(freq, startTime, duration, amp, destNode) {
     const osc1 = this.ctx.createOscillator();
     const osc2 = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     const partialGain = this.ctx.createGain();
 
-    osc1.type = 'sine';
+    osc1.type = "sine";
     osc1.frequency.setValueAtTime(freq, startTime);
 
-    // Overtone metalik khas bilah gamelan perunggu (~2.76x frekuensi dasar)
-    osc2.type = 'triangle';
+    osc2.type = "triangle";
     osc2.frequency.setValueAtTime(freq * 2.76, startTime);
 
     partialGain.gain.setValueAtTime(amp * 0.35, startTime);
-    partialGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration * 0.35);
+    partialGain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      startTime + duration * 0.35,
+    );
 
     gain.gain.setValueAtTime(0.001, startTime);
     gain.gain.linearRampToValueAtTime(amp, startTime + 0.008);
@@ -233,21 +356,17 @@ export class AudioManager {
     osc2.stop(startTime + duration + 0.02);
   }
 
-  // Sintesis Gong Ageng & Kempul dengan vibrato ombak halus (ombak gamelan)
   _synthGong(freq, startTime, duration, amp, destNode) {
     const osc1 = this.ctx.createOscillator();
     const osc2 = this.ctx.createOscillator();
     const osc3 = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc1.type = 'sine';
+    osc1.type = "sine";
     osc1.frequency.setValueAtTime(freq, startTime);
-
-    // Efek "ombak" (beating) dengan sedikit detune
-    osc2.type = 'sine';
+    osc2.type = "sine";
     osc2.frequency.setValueAtTime(freq + 1.8, startTime);
-
-    osc3.type = 'triangle';
+    osc3.type = "triangle";
     osc3.frequency.setValueAtTime(freq * 1.5, startTime);
 
     gain.gain.setValueAtTime(0.001, startTime);
@@ -268,14 +387,11 @@ export class AudioManager {
   }
 
   // =========================================================================
-  // 2. EFEK SUARA (SFX) PERMAINAN
+  // EFEK SUARA (SFX) + NARASI KREATIF
   // =========================================================================
-
-  // SFX Dadu Menggelinding (pantulan beruntun di atas papan)
   playDiceRoll() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
     const hitTimes = [0, 0.08, 0.16, 0.25, 0.36, 0.48, 0.59];
 
@@ -284,10 +400,9 @@ export class AudioManager {
       const decay = 0.045;
       const vol = 0.45 * Math.pow(0.84, idx);
 
-      // Klik resonansi dadu
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'triangle';
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(650 + Math.random() * 550, t);
       osc.frequency.exponentialRampToValueAtTime(220, t + decay);
 
@@ -299,23 +414,26 @@ export class AudioManager {
       osc.start(t);
       osc.stop(t + decay + 0.01);
 
-      // Sedikit noise gesekan dadu
-      this._playFilteredNoise(t, 0.03, 'bandpass', 1400 + idx * 120, 3.0, vol * 0.6);
+      this._playFilteredNoise(
+        t,
+        0.03,
+        "bandpass",
+        1400 + idx * 120,
+        3.0,
+        vol * 0.6,
+      );
     });
   }
 
-  // SFX Langkah Token melompat per petak
   playStep(stepNumber = 0) {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    // Nada naik sedikit tiap langkah agar terdengar hidup
     const baseFreq = 280 + (stepNumber % 8) * 28;
-    osc.type = 'sine';
+    osc.type = "sine";
     osc.frequency.setValueAtTime(baseFreq, now);
     osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.45, now + 0.065);
 
@@ -328,31 +446,30 @@ export class AudioManager {
     osc.stop(now + 0.08);
   }
 
-  // SFX Uang Masuk (Bansos cair, dapat uang kartu, atau terima sewa)
   playMoneyIn() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    const notes = [1046.5, 1318.5, 1567.98, 2093.0]; // C6 - E6 - G6 - C7
-    notes.forEach((freq, idx) => {
-      const t = now + idx * 0.065;
-      this._synthMetallophone(freq, t, 0.38, 0.28, this.sfxGain);
+    [1046.5, 1318.5, 1567.98, 2093.0].forEach((freq, idx) => {
+      this._synthMetallophone(
+        freq,
+        now + idx * 0.065,
+        0.38,
+        0.28,
+        this.sfxGain,
+      );
     });
   }
 
-  // SFX Bayar Tagihan / Pajak / Sewa
   playMoneyOut() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    const notes = [440, 349.23];
-    notes.forEach((freq, idx) => {
+    [440, 349.23].forEach((freq, idx) => {
       const t = now + idx * 0.09;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'triangle';
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(0.25, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
@@ -363,15 +480,44 @@ export class AudioManager {
     });
   }
 
-  // SFX Notifikasi "Eh?!" untuk Pungli (dua nada turun satir dengan formant sengau)
-  playPungli() {
+  // SFX Pungli Kreatif: Bunyi Peluit Tukang Parkir/Oknum ("Prittt!") + Nada Turun + Suara Narator
+  playPungli(customVoiceText = null) {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
+
+    // 1. Bunyi Peluit "PRITTT!" (Modulasi FM frekuensi tinggi khas peluit)
+    const whistleOsc = this.ctx.createOscillator();
+    const trillOsc = this.ctx.createOscillator();
+    const trillGain = this.ctx.createGain();
+    const whistleGain = this.ctx.createGain();
+
+    whistleOsc.type = "sine";
+    whistleOsc.frequency.setValueAtTime(2850, now);
+
+    trillOsc.type = "square";
+    trillOsc.frequency.setValueAtTime(42, now); // Getaran biji peluit
+    trillGain.gain.setValueAtTime(180, now);
+
+    whistleGain.gain.setValueAtTime(0.001, now);
+    whistleGain.gain.linearRampToValueAtTime(0.32, now + 0.02);
+    whistleGain.gain.setValueAtTime(0.32, now + 0.26);
+    whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+
+    trillOsc.connect(trillGain);
+    trillGain.connect(whistleOsc.frequency);
+    whistleOsc.connect(whistleGain);
+    whistleGain.connect(this.sfxGain);
+
+    trillOsc.start(now);
+    whistleOsc.start(now);
+    trillOsc.stop(now + 0.35);
+    whistleOsc.stop(now + 0.35);
+
+    // 2. Dua nada turun satir ("Eh-uh?!") setelah peluit
     const notes = [
-      { startFreq: 392.0, endFreq: 349.23, offset: 0, dur: 0.18 },     // "Eh-"
-      { startFreq: 311.13, endFreq: 233.08, offset: 0.21, dur: 0.34 }  // "-uh?!" (turun satir)
+      { startFreq: 392.0, endFreq: 349.23, offset: 0.36, dur: 0.18 },
+      { startFreq: 311.13, endFreq: 233.08, offset: 0.56, dur: 0.32 },
     ];
 
     notes.forEach((n) => {
@@ -380,17 +526,16 @@ export class AudioManager {
       const filter = this.ctx.createBiquadFilter();
       const gain = this.ctx.createGain();
 
-      osc.type = 'sawtooth';
+      osc.type = "sawtooth";
       osc.frequency.setValueAtTime(n.startFreq, t);
       osc.frequency.exponentialRampToValueAtTime(n.endFreq, t + n.dur);
 
-      // Filter bandpass vokal "eh"
-      filter.type = 'bandpass';
+      filter.type = "bandpass";
       filter.frequency.setValueAtTime(1150, t);
       filter.Q.setValueAtTime(3.5, t);
 
       gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(0.45, t + 0.02);
+      gain.gain.linearRampToValueAtTime(0.42, t + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
 
       osc.connect(filter);
@@ -400,55 +545,54 @@ export class AudioManager {
       osc.start(t);
       osc.stop(t + n.dur + 0.02);
     });
+
+    // 3. Ucapkan kalimat satir Pungli
+    this.speakEvent("pungli", customVoiceText);
   }
 
-  // SFX Masuk Lapas: Sirine meraung + Besi sel berdentang keras
+  // SFX Masuk Lapas: Sirine + Besi Sel Berdentang + Narator "Masuk Penjara!"
   playJailSirenAndClang() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
 
-    // 1. Sirine dua siklus (0.0s - 1.15s)
     const sirenOsc = this.ctx.createOscillator();
     const sirenGain = this.ctx.createGain();
-    sirenOsc.type = 'triangle';
+    sirenOsc.type = "triangle";
 
     sirenOsc.frequency.setValueAtTime(620, now);
-    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.28);
-    sirenOsc.frequency.linearRampToValueAtTime(620, now + 0.56);
-    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.84);
-    sirenOsc.frequency.linearRampToValueAtTime(620, now + 1.12);
+    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.3);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 0.6);
+    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.9);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 1.2);
 
     sirenGain.gain.setValueAtTime(0.001, now);
     sirenGain.gain.linearRampToValueAtTime(0.32, now + 0.04);
-    sirenGain.gain.setValueAtTime(0.32, now + 1.0);
-    sirenGain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+    sirenGain.gain.setValueAtTime(0.32, now + 1.1);
+    sirenGain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
 
     sirenOsc.connect(sirenGain);
     sirenGain.connect(this.sfxGain);
     sirenOsc.start(now);
-    sirenOsc.stop(now + 1.18);
+    sirenOsc.stop(now + 1.28);
 
-    // 2. Dentang Pintu Besi Sel Menutup (pada t + 1.15s saat pintu sel menutup)
-    this.playJailDoorClang(1.15);
+    // Dentang pintu besi sel tepat saat pion selesai berjalan masuk lewat pintu depan (t + 1.45s)
+    this.playJailDoorClang(1.45);
+    this.speakEvent("jail");
   }
 
   playJailDoorClang(delaySeconds = 0) {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const clangTime = this.ctx.currentTime + delaySeconds;
-    // Frekuensi inharmonik besi beradu
-    const metalFreqs = [240, 385, 590, 870, 1340];
-    metalFreqs.forEach((f, idx) => {
+    [240, 385, 590, 870, 1340].forEach((f, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = idx % 2 === 0 ? 'square' : 'sawtooth';
+      osc.type = idx % 2 === 0 ? "square" : "sawtooth";
       osc.frequency.setValueAtTime(f, clangTime);
 
       const dur = 0.45 - idx * 0.05;
-      gain.gain.setValueAtTime(0.18, clangTime);
+      gain.gain.setValueAtTime(0.2, clangTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, clangTime + dur);
 
       osc.connect(gain);
@@ -456,64 +600,64 @@ export class AudioManager {
       osc.start(clangTime);
       osc.stop(clangTime + dur + 0.02);
     });
-
-    // Hentakan noise pintu besi
-    this._playFilteredNoise(clangTime, 0.22, 'bandpass', 950, 2.0, 0.55);
+    this._playFilteredNoise(clangTime, 0.22, "bandpass", 950, 2.0, 0.55);
   }
 
-  // SFX Bencana Alam (Noise + Filter sesuai jenis: banjir, gempa, kebakaran, longsor)
-  playDisaster(jenisBencana = 'gempa') {
+  playDisaster(jenisBencana = "gempa") {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
 
-    if (jenisBencana === 'banjir') {
-      // Deras hujan & terjangan air meluap (bandpass noise sweeping)
-      this._playFilteredNoiseSweep(now, 1.35, 'bandpass', 450, 1600, 1.8, 0.55);
-      // Efek gelembung air rendah
+    this.speakEvent(jenisBencana);
+
+    if (jenisBencana === "banjir") {
+      this._playFilteredNoiseSweep(now, 1.45, "bandpass", 450, 1600, 1.8, 0.55);
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'sine';
+      osc.type = "sine";
       osc.frequency.setValueAtTime(160, now);
       osc.frequency.exponentialRampToValueAtTime(340, now + 0.5);
-      osc.frequency.exponentialRampToValueAtTime(190, now + 1.1);
+      osc.frequency.exponentialRampToValueAtTime(190, now + 1.2);
       gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
       osc.connect(gain);
       gain.connect(this.sfxGain);
       osc.start(now);
-      osc.stop(now + 1.2);
+      osc.stop(now + 1.3);
       return;
     }
 
-    if (jenisBencana === 'kebakaran') {
-      // Dentuman ledakan awal gardu + desis api membara
-      this._playFilteredNoise(now, 0.45, 'lowpass', 220, 1.0, 0.75);
-      this._playFilteredNoiseSweep(now + 0.1, 1.25, 'highpass', 900, 2400, 1.2, 0.42);
-      // Letupan percikan api
+    if (jenisBencana === "kebakaran") {
+      this._playFilteredNoise(now, 0.45, "lowpass", 220, 1.0, 0.75);
+      this._playFilteredNoiseSweep(
+        now + 0.1,
+        1.3,
+        "highpass",
+        900,
+        2400,
+        1.2,
+        0.42,
+      );
       for (let i = 0; i < 6; i++) {
         this._playFilteredNoise(
           now + 0.15 + i * 0.16,
           0.06,
-          'bandpass',
+          "bandpass",
           1800 + Math.random() * 1200,
           4.0,
-          0.35
+          0.35,
         );
       }
       return;
     }
 
-    if (jenisBencana === 'longsor') {
-      // Gemuruh tanah & batu jatuh dari tebing
-      this._playFilteredNoiseSweep(now, 1.3, 'lowpass', 680, 140, 1.5, 0.65);
-      const hitOffsets = [0.05, 0.24, 0.48, 0.72];
-      hitOffsets.forEach((off) => {
+    if (jenisBencana === "longsor") {
+      this._playFilteredNoiseSweep(now, 1.35, "lowpass", 680, 140, 1.5, 0.65);
+      [0.05, 0.24, 0.48, 0.72].forEach((off) => {
         const t = now + off;
         const osc = this.ctx.createOscillator();
         const g = this.ctx.createGain();
-        osc.type = 'triangle';
+        osc.type = "triangle";
         osc.frequency.setValueAtTime(135, t);
         osc.frequency.exponentialRampToValueAtTime(42, t + 0.22);
         g.gain.setValueAtTime(0.42, t);
@@ -526,67 +670,61 @@ export class AudioManager {
       return;
     }
 
-    // Default: Gempa Bumi (lowpass noise + sub-bass rumble kuat)
-    this._playFilteredNoise(now, 1.4, 'lowpass', 130, 1.2, 0.75);
+    this._playFilteredNoise(now, 1.45, "lowpass", 130, 1.2, 0.75);
     const subOsc = this.ctx.createOscillator();
     const subGain = this.ctx.createGain();
-    subOsc.type = 'sawtooth';
+    subOsc.type = "sawtooth";
     subOsc.frequency.setValueAtTime(58, now);
-    subOsc.frequency.linearRampToValueAtTime(42, now + 1.3);
-
+    subOsc.frequency.linearRampToValueAtTime(42, now + 1.35);
     subGain.gain.setValueAtTime(0.45, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.35);
-
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
     subOsc.connect(subGain);
     subGain.connect(this.sfxGain);
     subOsc.start(now);
-    subOsc.stop(now + 1.4);
+    subOsc.stop(now + 1.45);
   }
 
-  // SFX Beli Tanah / Bangun Rumah Naik dari Bawah Tanah
-  playBuyOrBuild() {
+  playBuyOrBuild(isUpgrade = false) {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    // Ketukan konstruksi diikuti nada naik Slendro
-    const notes = [this.slendro.N1, this.slendro.N3, this.slendro.N5, this.slendro.N1_HIGH];
-    notes.forEach((freq, idx) => {
+    [
+      this.slendro.N1,
+      this.slendro.N3,
+      this.slendro.N5,
+      this.slendro.N1_HIGH,
+    ].forEach((freq, idx) => {
       this._synthMetallophone(freq, now + idx * 0.08, 0.35, 0.26, this.sfxGain);
     });
+    this.speakEvent(isUpgrade ? "upgrade" : "buy");
   }
 
-  // SFX Kartu Takdir Bagus
   playGoodCard() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    const chord = [
+    [
       this.slendro.N1,
       this.slendro.N3,
       this.slendro.N5,
       this.slendro.N6,
       this.slendro.N1_HIGH,
-      this.slendro.N3_HIGH
-    ];
-    chord.forEach((freq, idx) => {
+      this.slendro.N3_HIGH,
+    ].forEach((freq, idx) => {
       this._synthMetallophone(freq, now + idx * 0.06, 0.65, 0.25, this.sfxGain);
     });
+    this.speakEvent("takdir");
   }
 
-  // SFX Kartu Musibah
   playBadCard() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    const notes = [370.0, 349.23, 261.63];
-    notes.forEach((freq, idx) => {
+    [370.0, 349.23, 261.63].forEach((freq, idx) => {
       const t = now + idx * 0.14;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
+      osc.type = "sawtooth";
       osc.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(0.18, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
@@ -595,48 +733,49 @@ export class AudioManager {
       osc.start(t);
       osc.stop(t + 0.3);
     });
+    this.speakEvent("musibah");
   }
 
-  // SFX Kekalahan / Bangkrut (Token tumbang & hancur jadi abu)
   playBankrupt() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    // Nada turun suram + Gong rendah + Desir partikel abu
-    const notes = [343.0, 298.0, 261.63, 196.0];
-    notes.forEach((freq, idx) => {
+    [343.0, 298.0, 261.63, 196.0].forEach((freq, idx) => {
       this._synthMetallophone(freq, now + idx * 0.16, 0.55, 0.3, this.sfxGain);
     });
-
     this._synthGong(this.slendro.GONG, now + 0.45, 2.2, 0.45, this.sfxGain);
-    this._playFilteredNoiseSweep(now + 0.4, 0.9, 'bandpass', 1200, 300, 1.5, 0.35);
+    this._playFilteredNoiseSweep(
+      now + 0.4,
+      0.9,
+      "bandpass",
+      1200,
+      300,
+      1.5,
+      0.35,
+    );
+    this.speakEvent("bankrupt");
   }
 
-  // SFX Kemenangan Akhir Permainan (Fanfare Gamelan Megah)
   playVictory() {
     this.ensureContext();
     if (this.sfxMuted) return;
-
     const now = this.ctx.currentTime;
-    const melody = [
+    [
       { f: this.slendro.N1, t: 0 },
       { f: this.slendro.N2, t: 0.11 },
       { f: this.slendro.N3, t: 0.22 },
       { f: this.slendro.N5, t: 0.33 },
       { f: this.slendro.N6, t: 0.44 },
       { f: this.slendro.N1_HIGH, t: 0.58 },
-      { f: this.slendro.N3_HIGH, t: 0.75 }
-    ];
-
-    melody.forEach((n) => {
+      { f: this.slendro.N3_HIGH, t: 0.75 },
+    ].forEach((n) => {
       this._synthMetallophone(n.f, now + n.t, 0.85, 0.32, this.sfxGain);
     });
     this._synthGong(this.slendro.KEMPUL_1, now + 0.58, 1.8, 0.35, this.sfxGain);
     this._synthGong(this.slendro.GONG, now + 0.75, 2.8, 0.45, this.sfxGain);
+    this.speakEvent("victory");
   }
 
-  // Helper memutar noise dengan BiquadFilter statis
   _playFilteredNoise(startTime, duration, filterType, freq, Q, amp) {
     if (!this.noiseBuffer) return;
     const src = this.ctx.createBufferSource();
@@ -660,8 +799,15 @@ export class AudioManager {
     src.stop(startTime + duration + 0.02);
   }
 
-  // Helper memutar noise dengan sapuan frekuensi (filter sweep)
-  _playFilteredNoiseSweep(startTime, duration, filterType, startFreq, endFreq, Q, amp) {
+  _playFilteredNoiseSweep(
+    startTime,
+    duration,
+    filterType,
+    startFreq,
+    endFreq,
+    Q,
+    amp,
+  ) {
     if (!this.noiseBuffer) return;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuffer;
@@ -669,7 +815,10 @@ export class AudioManager {
     const filter = this.ctx.createBiquadFilter();
     filter.type = filterType;
     filter.frequency.setValueAtTime(startFreq, startTime);
-    filter.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), startTime + duration);
+    filter.frequency.exponentialRampToValueAtTime(
+      Math.max(20, endFreq),
+      startTime + duration,
+    );
     filter.Q.setValueAtTime(Q, startTime);
 
     const gain = this.ctx.createGain();

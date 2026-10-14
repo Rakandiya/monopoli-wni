@@ -1,28 +1,29 @@
-// Entry Point Klien WNI Simulator Lengkap (Milestone 1 s/d Milestone 5)
-// Mengintegrasikan Papan 3D, Token + Indikator Bicara 3D, Dadu, Animasi Sinematik,
-// Sintesis Audio Gamelan Slendro, Multiplayer Socket.io Otoritatif, & Voice Chat WebRTC Mesh.
+// Entry Point Utama Klien WNI Simulator 3D
+// Menghubungkan Narator Bahasa Indonesia (speakEvent), Animasi Masuk Lapas Pintu Depan,
+// Desain Rumah/Hotel SVG, dan Bencana Smooth.
 
-import * as THREE from 'three';
-import { GameEngine } from '../shared/gameEngine.js';
-import { BOARD_TILES } from '../shared/tiles.js';
-import { Board3D } from './board.js';
-import { PlayerTokens3D } from './player.js';
-import { Dice3D } from './dice.js';
-import { CardsUI } from './cards-ui.js';
-import { GameUI } from './ui.js';
-import { CameraController } from './camera.js';
-import { FXManager } from './fx.js';
-import { AudioManager } from './audio.js';
-import { NetworkClient } from './network.js';
-import { VoiceManager } from './voice.js';
+import * as THREE from "three";
+import { GameEngine } from "../shared/gameEngine.js";
+import { BOARD_TILES } from "../shared/tiles.js";
+import { TAKDIR_CARDS, MUSIBAH_CARDS } from "../shared/cards.js";
+import { Board3D } from "./board.js";
+import { PlayerTokens3D } from "./player.js";
+import { Dice3D } from "./dice.js";
+import { CardsUI } from "./cards-ui.js";
+import { GameUI } from "./ui.js";
+import { CameraController } from "./camera.js";
+import { FXManager } from "./fx.js";
+import { AudioManager } from "./audio.js";
+import { NetworkClient } from "./network.js";
+import { VoiceManager } from "./voice.js";
 
 class WNISimulatorApp {
   constructor() {
-    this.container = document.getElementById('canvas-container');
+    this.container = document.getElementById("canvas-container");
     this.engine = new GameEngine();
     this.clock = new THREE.Clock();
 
-    this.mode = 'NONE'; // NONE | HOTSEAT | MULTIPLAYER
+    this.mode = "NONE";
     this.latestState = null;
     this.eventQueueChain = Promise.resolve();
 
@@ -50,16 +51,22 @@ class WNISimulatorApp {
       onSellAsset: (tileIdx) => this.handleSellAsset(tileIdx),
       onEndTurn: () => this.handleEndTurn(),
       onResetCamera: () => this.cameraCtrl.resetView(),
+      onToggleQuality: () => {
+        const next = this.fxManager.quality === "HIGH" ? "LOW" : "HIGH";
+        return this.fxManager.setQuality(next);
+      },
       onToggleMusic: () => this.audio.toggleMusicMute(),
       onToggleSfx: () => this.audio.toggleSfxMute(),
       onToggleMic: () => this.voice.toggleMicMute(),
       onVolumeChange: (val) => this.audio.setMasterVolume(val),
-      onDebugTrigger: (testType) => this.handleDebugM2M5(testType)
+      onDebugTrigger: (testType) => this.handleDebugTrigger(testType),
     });
+
+    this.ui.setQualityButtonState(this.fxManager.quality);
 
     this.network = new NetworkClient({
       onLobbyUpdate: (roomSummary) => {
-        if (roomSummary.status === 'LOBBY') {
+        if (roomSummary.status === "LOBBY") {
           this.ui.renderWaitingRoom(roomSummary, this.network.myPlayerId);
         }
       },
@@ -68,22 +75,28 @@ class WNISimulatorApp {
       },
       onReconnected: (res) => {
         this.voice.initAndJoinMesh(res.playerId);
-        if (res.state && res.roomSummary.status === 'PLAYING') {
+        if (res.state && res.roomSummary.status === "PLAYING") {
           this._initMultiplayerMatchView(res.roomCode, res.state);
+          if (
+            res.state.fase === "WAIT_CARD_CONFIRM" &&
+            res.state.kartuTertunda
+          ) {
+            this._tampilkanOverlayKartuTertunda(res.state.kartuTertunda);
+          }
         } else if (res.roomSummary) {
           this.ui.renderWaitingRoom(res.roomSummary, res.playerId);
         }
       },
       onGameEventBatch: (payload) => {
         this.eventQueueChain = this.eventQueueChain.then(() =>
-          this._prosesAntreanEvent(payload.events || [], payload.state)
+          this._prosesAntreanEvent(payload.events || [], payload.state),
         );
       },
-      // Callback Signaling WebRTC Mesh (Milestone 5)
       onVoicePeerReady: (payload) => this.voice.handlePeerReady(payload),
       onVoiceSignal: (payload) => this.voice.handleSignal(payload),
       onVoicePeerLeft: (payload) => this.voice.handlePeerLeft(payload),
-      onVoiceStateUpdate: (payload) => this.voice.handleVoiceStateUpdate(payload)
+      onVoiceStateUpdate: (payload) =>
+        this.voice.handleVoiceStateUpdate(payload),
     });
 
     this.voice = new VoiceManager(this.network, (status) => {
@@ -92,20 +105,20 @@ class WNISimulatorApp {
 
     this.network.connect();
 
-    window.addEventListener('resize', () => this._onResize());
+    window.addEventListener("resize", () => this._onResize());
     this._animate();
   }
 
   _initThreeScene() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0b111e);
-    this.scene.fog = new THREE.FogExp2(0x0b111e, 0.015);
+    this.scene.fog = new THREE.FogExp2(0x0b111e, 0.014);
 
     this.camera = new THREE.PerspectiveCamera(
       45,
       window.innerWidth / window.innerHeight,
       0.1,
-      150
+      150,
     );
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -115,14 +128,17 @@ class WNISimulatorApp {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(this.renderer.domElement);
 
-    this.cameraCtrl = new CameraController(this.camera, this.renderer.domElement);
+    this.cameraCtrl = new CameraController(
+      this.camera,
+      this.renderer.domElement,
+    );
   }
 
   _initLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.68);
     this.scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.35);
+    const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.38);
     dirLight.position.set(14, 24, 16);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
@@ -137,11 +153,11 @@ class WNISimulatorApp {
     dirLight.shadow.bias = -0.0005;
     this.scene.add(dirLight);
 
-    const pLight1 = new THREE.PointLight(0x38bdf8, 0.8, 30);
+    const pLight1 = new THREE.PointLight(0x38bdf8, 0.85, 32);
     pLight1.position.set(-10, 8, -10);
     this.scene.add(pLight1);
 
-    const pLight2 = new THREE.PointLight(0xfacc15, 0.65, 30);
+    const pLight2 = new THREE.PointLight(0xfacc15, 0.7, 32);
     pLight2.position.set(10, 8, 10);
     this.scene.add(pLight2);
   }
@@ -151,7 +167,7 @@ class WNISimulatorApp {
     this.audio.startMusic();
     const res = await this.network.createRoom(nama, warna);
     if (!res?.ok) {
-      this.ui.showLobbyError(res?.pesan || 'Gagal membuat room.');
+      this.ui.showLobbyError(res?.pesan || "Gagal membuat room.");
       return;
     }
     this.ui.renderWaitingRoom(res.roomSummary, res.playerId);
@@ -163,7 +179,7 @@ class WNISimulatorApp {
     this.audio.startMusic();
     const res = await this.network.joinRoom(code, nama, warna);
     if (!res?.ok) {
-      this.ui.showLobbyError(res?.pesan || 'Gagal bergabung ke room.');
+      this.ui.showLobbyError(res?.pesan || "Gagal bergabung ke room.");
       return;
     }
     await this.voice.initAndJoinMesh(res.playerId);
@@ -177,22 +193,27 @@ class WNISimulatorApp {
   async handleHostStartGame() {
     const res = await this.network.startGame();
     if (!res?.ok) {
-      this.ui.showLobbyError(res?.pesan || 'Tidak dapat memulai permainan.');
+      this.ui.showLobbyError(res?.pesan || "Tidak dapat memulai permainan.");
     }
   }
 
   async handleLeaveRoom() {
     this.voice.leaveMesh();
-    if (this.mode === 'MULTIPLAYER' || this.network.roomCode) {
+    await this.cardsUI.hideCard();
+    if (this.mode === "MULTIPLAYER" || this.network.roomCode) {
       await this.network.leaveRoom();
     }
-    this.mode = 'NONE';
-    this.ui.setSessionMode({ isMultiplayer: false, myPlayerId: null, roomCode: null });
+    this.mode = "NONE";
+    this.ui.setSessionMode({
+      isMultiplayer: false,
+      myPlayerId: null,
+      roomCode: null,
+    });
     this.ui.showLobbyModal();
   }
 
   _initMultiplayerMatchView(roomCode, state) {
-    this.mode = 'MULTIPLAYER';
+    this.mode = "MULTIPLAYER";
     this.latestState = state;
     this.audio.ensureContext();
     this.audio.startMusic();
@@ -202,7 +223,7 @@ class WNISimulatorApp {
     this.ui.setSessionMode({
       isMultiplayer: true,
       myPlayerId: this.network.myPlayerId,
-      roomCode
+      roomCode,
     });
 
     this.tokens3D.initTokens(state.players);
@@ -212,25 +233,28 @@ class WNISimulatorApp {
   }
 
   startHotSeatGame(playerConfigs) {
-    this.mode = 'HOTSEAT';
+    this.mode = "HOTSEAT";
     this.audio.ensureContext();
     this.audio.startMusic();
     this.audio.playMoneyIn();
 
-    this.ui.setSessionMode({ isMultiplayer: false, myPlayerId: null, roomCode: null });
+    this.ui.setSessionMode({
+      isMultiplayer: false,
+      myPlayerId: null,
+      roomCode: null,
+    });
     const state = this.engine.initGame(playerConfigs);
     this.latestState = state;
     this.tokens3D.initTokens(state.players);
     this.board3D.syncProperties(state.properties, state.players);
     this.ui.render(state);
 
-    // Di mode Hot-Seat, aktifkan juga pendeteksi suara lokal untuk pemain p1
-    this.voice.initAndJoinMesh('p1');
+    this.voice.initAndJoinMesh("p1");
   }
 
   async handleRollDice() {
-    if (this.mode === 'MULTIPLAYER') {
-      await this.network.sendIntent('rollDice');
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("rollDice");
       return;
     }
 
@@ -242,10 +266,24 @@ class WNISimulatorApp {
     }
   }
 
+  async handleConfirmCard() {
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("confirmCard");
+      return;
+    }
+
+    const current = this.engine.getCurrentPlayer();
+    if (!current) return;
+    const result = this.engine.confirmCard(current.id);
+    if (result.ok) {
+      await this._prosesAntreanEvent(result.events, result.state);
+    }
+  }
+
   async handlePayJail() {
-    if (this.mode === 'MULTIPLAYER') {
+    if (this.mode === "MULTIPLAYER") {
       this.audio.playMoneyOut();
-      await this.network.sendIntent('payJail');
+      await this.network.sendIntent("payJail");
       return;
     }
 
@@ -259,8 +297,8 @@ class WNISimulatorApp {
   }
 
   async handleBuyProperty() {
-    if (this.mode === 'MULTIPLAYER') {
-      await this.network.sendIntent('buy');
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("buy");
       return;
     }
 
@@ -273,8 +311,8 @@ class WNISimulatorApp {
   }
 
   async handleSkipBuy() {
-    if (this.mode === 'MULTIPLAYER') {
-      await this.network.sendIntent('skipBuy');
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("skipBuy");
       return;
     }
 
@@ -287,8 +325,8 @@ class WNISimulatorApp {
   }
 
   async handleUpgradeProperty(tileIndex) {
-    if (this.mode === 'MULTIPLAYER') {
-      await this.network.sendIntent('upgrade', { tileIndex });
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("upgrade", { tileIndex });
       return;
     }
 
@@ -301,9 +339,9 @@ class WNISimulatorApp {
   }
 
   async handleSellAsset(tileIndex) {
-    if (this.mode === 'MULTIPLAYER') {
+    if (this.mode === "MULTIPLAYER") {
       this.audio.playMoneyIn();
-      await this.network.sendIntent('sell', { tileIndex });
+      await this.network.sendIntent("sell", { tileIndex });
       return;
     }
 
@@ -312,14 +350,17 @@ class WNISimulatorApp {
     const result = this.engine.sellAsset(current.id, tileIndex);
     if (result.ok) {
       this.audio.playMoneyIn();
-      this.board3D.syncProperties(result.state.properties, result.state.players);
+      this.board3D.syncProperties(
+        result.state.properties,
+        result.state.players,
+      );
       this.ui.render(result.state);
     }
   }
 
   async handleEndTurn() {
-    if (this.mode === 'MULTIPLAYER') {
-      await this.network.sendIntent('endTurn');
+    if (this.mode === "MULTIPLAYER") {
+      await this.network.sendIntent("endTurn");
       return;
     }
 
@@ -337,33 +378,60 @@ class WNISimulatorApp {
     this.ui.setAnimating(true);
 
     for (const ev of events) {
-      if (ev.tipe === 'DICE_ROLLED') {
+      if (ev.tipe === "DICE_ROLLED") {
         this.audio.playDiceRoll();
         await this.dice3D.animateRoll(ev.dadu[0], ev.dadu[1]);
-      } else if (ev.tipe === 'PLAYER_MOVED') {
-        await this.tokens3D.animateMoveAlongPath(ev.playerId, ev.jalur, (stepIdx) => {
-          this.audio.playStep(stepIdx);
-        });
-      } else if (ev.tipe === 'PASS_START') {
+      } else if (ev.tipe === "PLAYER_MOVED") {
+        this.cameraCtrl.startFollowToken(() =>
+          this.tokens3D.getTokenTransform(ev.playerId),
+        );
+        await this.tokens3D.animateMoveAlongPath(
+          ev.playerId,
+          ev.jalur,
+          (stepIdx) => {
+            this.audio.playStep(stepIdx);
+          },
+        );
+        await this.cameraCtrl.stopFollowToken(0.75);
+      } else if (ev.tipe === "PASS_START") {
         this.audio.playMoneyIn();
-      } else if (ev.tipe === 'PAY_RENT' || ev.tipe === 'TAX_PAID') {
+        this.audio.speakEvent("bansos");
+      } else if (ev.tipe === "CARD_MONEY_GAIN") {
+        this.audio.playMoneyIn();
+      } else if (ev.tipe === "PAY_RENT") {
         this.audio.playMoneyOut();
-      } else if (ev.tipe === 'PUNGLI_HIT') {
+        this.audio.speakEvent("rent");
+        this.ui.showRentNotification(ev);
+        await this._delay(650);
+      } else if (ev.tipe === "TAX_PAID") {
+        this.audio.playMoneyOut();
+      } else if (ev.tipe === "PUNGLI_HIT") {
         this.audio.playPungli();
-        await this._delay(450);
-      } else if (ev.tipe === 'LAND_CONFISCATED') {
+        await this._delay(650);
+      } else if (ev.tipe === "LAND_CONFISCATED") {
         this.audio.playBadCard();
-      } else if (ev.tipe === 'GO_TO_JAIL') {
+      } else if (ev.tipe === "CARD_DRAWN") {
+        if (ev.jenisDeck === "TAKDIR") this.audio.playGoodCard();
+        else this.audio.playBadCard();
+        this._tampilkanOverlayKartuTertunda(ev);
+      } else if (ev.tipe === "CARD_CONFIRMED") {
+        await this.cardsUI.hideCard();
+        await this._jalankanAnimasiSetelahKartuOK(ev);
+      } else if (ev.tipe === "GO_TO_JAIL") {
         await this._jalankanAnimasiMasukLapas(ev.playerId);
-      } else if (ev.tipe === 'DISASTER_HIT') {
+      } else if (ev.tipe === "DISASTER_HIT") {
         await this._jalankanAnimasiBencana(ev);
-      } else if (ev.tipe === 'CARD_DRAWN') {
-        await this._jalankanAnimasiKartu(ev, finalState);
-      } else if (ev.tipe === 'PROPERTY_BOUGHT' || ev.tipe === 'PROPERTY_UPGRADED') {
-        await this._jalankanAnimasiBangunanNaik(ev.tileIndex, finalState);
-      } else if (ev.tipe === 'PLAYER_BANKRUPT') {
+      } else if (ev.tipe === "PROPERTY_BOUGHT") {
+        await this._jalankanAnimasiBangunanNaik(
+          ev.tileIndex,
+          finalState,
+          false,
+        );
+      } else if (ev.tipe === "PROPERTY_UPGRADED") {
+        await this._jalankanAnimasiBangunanNaik(ev.tileIndex, finalState, true);
+      } else if (ev.tipe === "PLAYER_BANKRUPT") {
         await this._jalankanAnimasiBangkrut(ev.playerId);
-      } else if (ev.tipe === 'GAME_OVER') {
+      } else if (ev.tipe === "GAME_OVER") {
         this.audio.playVictory();
       }
     }
@@ -379,101 +447,142 @@ class WNISimulatorApp {
     this.ui.render(finalState);
   }
 
-  async _jalankanAnimasiMasukLapas(playerId) {
-    const jailCenter = this.board3D.getTileCenterPosition(10);
-    this.ui.showCinematicBanner('DIGELANDANG KE LAPAS CIPINANG!');
+  _tampilkanOverlayKartuTertunda(cardEvent) {
+    const canConfirm =
+      this.mode !== "MULTIPLAYER" ||
+      cardEvent.playerId === this.network.myPlayerId;
 
-    this.board3D.openJailDoorImmediate();
-    this.audio.playJailSirenAndClang();
-
-    await this.cameraCtrl.focusOnPoint(jailCenter, { height: 4.2, distance: 5.4, duration: 0.6 });
-    await this.tokens3D.animateEnterJailCell(playerId);
-
-    this.cameraCtrl.shake(0.2, 0.3);
-    await this.board3D.animateJailDoorClose();
-    await this._delay(350);
-
-    this.ui.showCinematicBanner(null);
-    await this.cameraCtrl.endCinematic(0.7);
+    this.cardsUI.presentCard({
+      jenisDeck: cardEvent.jenisDeck,
+      kartu: cardEvent.kartu,
+      namaPemain: cardEvent.namaPemain || "Warga",
+      canConfirm,
+      onConfirmCallback: () => this.handleConfirmCard(),
+    });
   }
 
-  async _jalankanAnimasiBencana(ev) {
-    const tokenPos = this.tokens3D.getTokenPosition(ev.playerId);
-    this.ui.showCinematicBanner(`BENCANA ALAM: ${(ev.namaBencana || ev.jenisBencana).toUpperCase()}!`);
+  async _jalankanAnimasiSetelahKartuOK(ev) {
+    const animType = ev.kartu?.animasi;
 
-    await this.cameraCtrl.focusOnPoint(tokenPos, { height: 4.5, distance: 5.8, duration: 0.55 });
-
-    const shakePower = ev.jenisBencana === 'gempa' ? 0.52 : 0.35;
-    this.cameraCtrl.shake(shakePower, 1.0);
-    this.audio.playDisaster(ev.jenisBencana);
-    this.fxManager.playDisasterFX(ev.jenisBencana, tokenPos);
-
-    await this.tokens3D.animateDisasterKnockback(ev.playerId);
-    await this._delay(300);
-
-    this.ui.showCinematicBanner(null);
-    await this.cameraCtrl.endCinematic(0.7);
-  }
-
-  async _jalankanAnimasiKartu(ev, finalState) {
-    const p = finalState.players.find((pl) => pl.id === ev.playerId);
-    if (ev.jenisDeck === 'TAKDIR') {
-      this.audio.playGoodCard();
-    } else {
-      this.audio.playBadCard();
-    }
-
-    const autoClosePromise =
-      this.mode === 'MULTIPLAYER' && ev.playerId !== this.network.myPlayerId
-        ? this._delay(2400).then(() => {
-            document.getElementById('card-modal')?.classList.add('hidden');
-          })
-        : null;
-
-    if (autoClosePromise) {
-      await Promise.race([
-        this.cardsUI.showCard(ev.jenisDeck, ev.kartu, p ? p.nama : 'Warga'),
-        autoClosePromise
-      ]);
-    } else {
-      await this.cardsUI.showCard(ev.jenisDeck, ev.kartu, p ? p.nama : 'Warga');
-    }
-
-    if (ev.jenisDeck === 'TAKDIR') {
+    if (ev.jenisDeck === "TAKDIR" || animType === "confetti") {
       const tokenPos = this.tokens3D.getTokenPosition(ev.playerId);
-      this.ui.showCinematicBanner('BERKAH KARTU TAKDIR!');
-      await this.cameraCtrl.focusOnPoint(tokenPos, { height: 4.2, distance: 5.5, duration: 0.5 });
+      this.ui.showCinematicBanner(
+        `BERKAH TAKDIR: ${ev.kartu.judul.toUpperCase()}!`,
+      );
+      await this.cameraCtrl.focusOnPoint(tokenPos, {
+        height: 4.2,
+        distance: 5.5,
+        duration: 0.55,
+      });
 
       this.audio.playMoneyIn();
       this.fxManager.playGoodCardFX(tokenPos);
       await this.tokens3D.animateGoodCardJump(ev.playerId);
-      await this._delay(350);
+      await this._delay(450);
 
       this.ui.showCinematicBanner(null);
       await this.cameraCtrl.endCinematic(0.65);
+      return;
+    }
+
+    if (["banjir", "gempa", "kebakaran"].includes(animType)) {
+      await this._jalankanAnimasiBencana({
+        playerId: ev.playerId,
+        jenisBencana: animType,
+        namaBencana: ev.kartu.judul,
+      });
+    } else if (animType === "tagihan") {
+      this.audio.playMoneyOut();
     }
   }
 
-  async _jalankanAnimasiBangunanNaik(tileIndex, finalState) {
-    const tile = BOARD_TILES[tileIndex];
-    this.audio.playBuyOrBuild();
+  // Animasi Masuk Lapas Selaras Pintu Depan:
+  // 1. Pintu depan sel dibuka lebar
+  // 2. Kamera menyorot dari arah depan sel
+  // 3. Pion mendarat di depan pintu sel, berjalan masuk melewati pintu depan, lalu berbalik badan
+  // 4. Pintu sel dibanting menutup di depan pion
+  async _jalankanAnimasiMasukLapas(playerId) {
+    const jailCenter = this.board3D.getTileCenterPosition(10);
+    this.ui.showCinematicBanner("DIGELANDANG KE LAPAS CIPINANG!");
 
-    if (!tile || tile.tipe !== 'PROPERTY') {
+    this.board3D.openJailDoorImmediate();
+    this.audio.playJailSirenAndClang();
+
+    await this.cameraCtrl.focusOnPoint(jailCenter, {
+      height: 3.6,
+      distance: 5.6,
+      duration: 0.6,
+    });
+    await this.tokens3D.animateEnterJailCell(playerId);
+
+    this.cameraCtrl.shake(0.24, 0.35);
+    await this.board3D.animateJailDoorClose();
+    await this._delay(450);
+
+    this.ui.showCinematicBanner(null);
+    await this.cameraCtrl.endCinematic(0.75);
+  }
+
+  async _jalankanAnimasiBencana(ev) {
+    const tokenPos = this.tokens3D.getTokenPosition(ev.playerId);
+    this.ui.showCinematicBanner(
+      `BENCANA: ${(ev.namaBencana || ev.jenisBencana).toUpperCase()}!`,
+    );
+
+    await this.cameraCtrl.focusOnPoint(tokenPos, {
+      height: 4.5,
+      distance: 6.0,
+      duration: 0.6,
+    });
+
+    if (ev.jenisBencana === "gempa") {
+      this.cameraCtrl.shake(0.55, 1.4);
+      this.board3D.shakeBoard(0.26, 1.4);
+    } else {
+      this.cameraCtrl.shake(0.32, 1.0);
+    }
+
+    this.audio.playDisaster(ev.jenisBencana);
+    this.fxManager.playDisasterFX(ev.jenisBencana, tokenPos);
+
+    await this.tokens3D.animateDisasterKnockback(ev.playerId, ev.jenisBencana);
+    await this._delay(450);
+
+    this.ui.showCinematicBanner(null);
+    await this.cameraCtrl.endCinematic(0.75);
+  }
+
+  async _jalankanAnimasiBangunanNaik(tileIndex, finalState, isUpgrade = false) {
+    const tile = BOARD_TILES[tileIndex];
+    this.audio.playBuyOrBuild(isUpgrade);
+
+    if (!tile || tile.tipe !== "PROPERTY") {
       this.board3D.syncProperties(finalState.properties, finalState.players);
       return;
     }
 
     const tileCenter = this.board3D.getTileCenterPosition(tileIndex);
-    this.ui.showCinematicBanner(`PEMBANGUNAN DI ${tile.nama.toUpperCase()}`);
+    const level = finalState.properties[tileIndex]?.level || 0;
+    const label =
+      level === 0
+        ? "AKUISISI TANAH"
+        : level === 5
+          ? "PEMBANGUNAN HOTEL"
+          : `PEMBANGUNAN RUMAH #${level}`;
+    this.ui.showCinematicBanner(`${label} DI ${tile.nama.toUpperCase()}`);
 
-    await this.cameraCtrl.focusOnPoint(tileCenter, { height: 3.8, distance: 5.0, duration: 0.55 });
+    await this.cameraCtrl.focusOnPoint(tileCenter, {
+      height: 3.8,
+      distance: 5.0,
+      duration: 0.55,
+    });
     this.fxManager.playBuyLandFX(tileCenter);
     await this.board3D.animateBuildingRiseFromUnderground(
       tileIndex,
       finalState.properties,
-      finalState.players
+      finalState.players,
     );
-    await this._delay(250);
+    await this._delay(300);
 
     this.ui.showCinematicBanner(null);
     await this.cameraCtrl.endCinematic(0.65);
@@ -481,11 +590,15 @@ class WNISimulatorApp {
 
   async _jalankanAnimasiBangkrut(playerId) {
     const tokenPos = this.tokens3D.getTokenPosition(playerId);
-    this.ui.showCinematicBanner('WARGA BANGKRUT & GULUNG TIKAR!');
+    this.ui.showCinematicBanner("WARGA BANGKRUT & GULUNG TIKAR!");
 
-    await this.cameraCtrl.focusOnPoint(tokenPos, { height: 3.8, distance: 4.8, duration: 0.6 });
+    await this.cameraCtrl.focusOnPoint(tokenPos, {
+      height: 3.8,
+      distance: 4.8,
+      duration: 0.6,
+    });
     this.audio.playBankrupt();
-    this.cameraCtrl.shake(0.25, 0.55);
+    this.cameraCtrl.shake(0.28, 0.55);
     await this.tokens3D.animateBankruptCollapse(playerId, this.fxManager);
     await this._delay(450);
 
@@ -493,59 +606,91 @@ class WNISimulatorApp {
     await this.cameraCtrl.endCinematic(0.75);
   }
 
-  // Handler Panel Uji Cepat M2 s/d M5
-  async handleDebugM2M5(testType) {
-    if (testType === 'voice-sim') {
-      const stateRef = this.mode === 'MULTIPLAYER' ? this.latestState : this.engine.state;
+  async handleDebugTrigger(testType) {
+    if (testType === "voice-sim") {
+      const stateRef =
+        this.mode === "MULTIPLAYER" ? this.latestState : this.engine.state;
       const activeId =
-        this.mode === 'MULTIPLAYER' && this.network.myPlayerId
+        this.mode === "MULTIPLAYER" && this.network.myPlayerId
           ? this.network.myPlayerId
-          : stateRef?.players?.[stateRef.giliranIndex]?.id || 'p1';
+          : stateRef?.players?.[stateRef.giliranIndex]?.id || "p1";
       this.voice.simulateSpeaking(activeId, 3500);
       return;
     }
 
-    if (testType === 'sfx-pungli') {
+    if (testType === "sfx-pungli") {
       this.audio.playPungli();
       return;
     }
 
-    const stateRef = this.mode === 'MULTIPLAYER' ? this.latestState : this.engine.state;
+    const stateRef =
+      this.mode === "MULTIPLAYER" ? this.latestState : this.engine.state;
     if (!stateRef) return;
     const current = stateRef.players[stateRef.giliranIndex];
     if (!current) return;
 
+    if (testType === "takdir" || testType === "musibah") {
+      const isTakdir = testType === "takdir";
+      const sample = isTakdir ? TAKDIR_CARDS[0] : MUSIBAH_CARDS[6];
+      if (isTakdir) this.audio.playGoodCard();
+      else this.audio.playBadCard();
+
+      this.cardsUI.presentCard({
+        jenisDeck: isTakdir ? "TAKDIR" : "MUSIBAH",
+        kartu: sample,
+        namaPemain: current.nama,
+        canConfirm: true,
+        onConfirmCallback: async () => {
+          await this.cardsUI.hideCard();
+          await this._jalankanAnimasiSetelahKartuOK({
+            playerId: current.id,
+            jenisDeck: isTakdir ? "TAKDIR" : "MUSIBAH",
+            kartu: sample,
+          });
+        },
+      });
+      return;
+    }
+
     this.ui.setAnimating(true);
 
-    if (testType === 'jail') {
+    if (testType === "jail") {
       await this._jalankanAnimasiMasukLapas(current.id);
-    } else if (['banjir', 'gempa', 'kebakaran', 'longsor'].includes(testType)) {
+    } else if (["banjir", "gempa", "kebakaran", "longsor"].includes(testType)) {
       const labelMap = {
-        banjir: 'Banjir Kiriman Tahunan',
-        gempa: 'Gempa Tektonik Lokal',
-        kebakaran: 'Kebakaran Korsleting Gardu',
-        longsor: 'Tanah Longsor Tebing'
+        banjir: "Tsunami & Banjir Bandang",
+        gempa: "Gempa Bumi Tektonik",
+        kebakaran: "Kebakaran & Ledakan Gardu",
+        longsor: "Tanah Longsor Tebing",
       };
       await this._jalankanAnimasiBencana({
         playerId: current.id,
         jenisBencana: testType,
-        namaBencana: labelMap[testType]
+        namaBencana: labelMap[testType],
       });
-    } else if (testType === 'takdir') {
-      const sampleCard = {
-        id: 'T_TEST',
-        tipe: 'uang',
-        nilai: 200000,
-        teks: 'Data RT sinkron! Bansos rapelan cair tanpa potongan administrasi sebesar Rp 200.000.'
-      };
-      await this._jalankanAnimasiKartu(
-        { playerId: current.id, jenisDeck: 'TAKDIR', kartu: sampleCard },
-        stateRef
+    } else if (testType === "buy") {
+      const targetTile =
+        BOARD_TILES[current.posisi]?.tipe === "PROPERTY" ? current.posisi : 1;
+      let isUpg = false;
+      if (this.mode === "HOTSEAT") {
+        const existing = this.engine.state.properties[targetTile];
+        if (!existing) {
+          this.engine.state.properties[targetTile] = {
+            ownerId: current.id,
+            level: 1,
+          };
+        } else {
+          existing.level = existing.level >= 5 ? 0 : existing.level + 1;
+          isUpg = existing.level > 0;
+        }
+        this.latestState = this.engine.getPublicState();
+      }
+      await this._jalankanAnimasiBangunanNaik(
+        targetTile,
+        this.latestState,
+        isUpg,
       );
-    } else if (testType === 'buy') {
-      const targetTile = BOARD_TILES[current.posisi]?.tipe === 'PROPERTY' ? current.posisi : 1;
-      await this._jalankanAnimasiBangunanNaik(targetTile, stateRef);
-    } else if (testType === 'bankrupt') {
+    } else if (testType === "bankrupt") {
       await this._jalankanAnimasiBangkrut(current.id);
       setTimeout(() => {
         const token = this.tokens3D.tokens.get(current.id);
@@ -554,7 +699,7 @@ class WNISimulatorApp {
     }
 
     this.ui.setAnimating(false);
-    this.ui.render(stateRef);
+    this.ui.render(this.latestState);
   }
 
   _delay(ms) {
@@ -572,10 +717,10 @@ class WNISimulatorApp {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.elapsedTime;
 
+    this.board3D.update(elapsed, dt);
     this.cameraCtrl.update(dt);
     this.fxManager.update(dt);
 
-    // Update deteksi bicara AnalyserNode & visualisasi indikator 3D + UI
     const { speakingMap, mutedMap } = this.voice.update();
     this.tokens3D.updateSpeakingIndicators(speakingMap, elapsed);
     this.ui.updateSpeakingUI(speakingMap, mutedMap);

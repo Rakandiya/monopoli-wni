@@ -1,189 +1,248 @@
-// 15 Kartu Takdir & 15 Kartu Musibah
-// Format data: { id, tipe: 'uang' | 'pindah' | 'penjara' | 'bayarPerBangunan' | 'terimaDariSemua', nilai, teks }
-// Humor satir seputar birokrasi, antrean, calo, pinjol, banjir tahunan, dan bansos tanpa unsur SARA/tokoh nyata.
+// 15 Kartu Takdir & 15 Kartu Musibah (Upgrade Tugas 3)
+// Setiap kartu memiliki: id, judul, tipe, nilai, teks, dan animasi yang dipicu setelah klik "OK".
 
 export const TAKDIR_CARDS = [
   {
-    id: 'T01',
-    tipe: 'uang',
+    id: "T01",
+    judul: "Bansos Rapelan Cair",
+    tipe: "uang",
     nilai: 200000,
-    teks: 'Data RT tiba-tiba sinkron! Bansos rapelan cair tanpa potongan administrasi sebesar Rp 200.000.'
+    animasi: "confetti",
+    teks: "Data RT tiba-tiba sinkron! Bansos rapelan cair tanpa potongan administrasi sebesar Rp 200.000.",
   },
   {
-    id: 'T02',
-    tipe: 'uang',
+    id: "T02",
+    judul: "Viral Jalur Berlubang",
+    tipe: "uang",
     nilai: 150000,
-    teks: 'Konten video keluhan jalan berlubang viral di medsos. Dapat endorse produk lokal Rp 150.000.'
+    animasi: "confetti",
+    teks: "Konten video keluhan jalan berlubang viral di medsos. Dapat endorse produk lokal Rp 150.000.",
   },
   {
-    id: 'T03',
-    tipe: 'uang',
+    id: "T03",
+    judul: "Rezeki Jas Hujan Lama",
+    tipe: "uang",
     nilai: 100000,
-    teks: 'Menemukan uang kembalian belanja di saku jas hujan tahun lalu sebesar Rp 100.000.'
+    animasi: "confetti",
+    teks: "Menemukan uang kembalian belanja di saku jas hujan tahun lalu sebesar Rp 100.000.",
   },
   {
-    id: 'T04',
-    tipe: 'uang',
+    id: "T04",
+    judul: "Doorprize Jalan Sehat",
+    tipe: "uang",
     nilai: 250000,
-    teks: 'Menang undian jalan sehat tingkat kelurahan! Hadiah utama uang pembinaan Rp 250.000.'
+    animasi: "confetti",
+    teks: "Menang undian jalan sehat tingkat kelurahan! Hadiah utama uang pembinaan Rp 250.000.",
   },
   {
-    id: 'T05',
-    tipe: 'terimaDariSemua',
+    id: "T05",
+    judul: "Amplop Hajatan Gang",
+    tipe: "terimaDariSemua",
     nilai: 50000,
-    teks: 'Kamu menggelar hajatan warga dan menutup setengah jalan gang. Setiap pemain menyumbang amplop Rp 50.000.'
+    animasi: "confetti",
+    teks: "Kamu menggelar hajatan warga dan menutup setengah jalan gang. Setiap pemain menyumbang amplop Rp 50.000.",
   },
   {
-    id: 'T06',
-    tipe: 'pindah',
+    id: "T06",
+    judul: "Server Antrean Lancar",
+    tipe: "pindah",
     nilai: 0,
-    teks: 'Sistem antrean online sedang lancar jaya! Maju langsung ke petak Start dan terima Bansos Rp 200.000.'
+    animasi: "pindah",
+    teks: "Sistem antrean online sedang lancar jaya! Maju langsung ke petak Start dan terima Bansos Rp 200.000.",
   },
   {
-    id: 'T07',
-    tipe: 'uang',
+    id: "T07",
+    judul: "Lulus Tanpa Calo",
+    tipe: "uang",
     nilai: 120000,
-    teks: 'Berhasil mengurus dokumen kependudukan sendiri tanpa lewat calo. Hemat biaya Rp 120.000!'
+    animasi: "confetti",
+    teks: "Berhasil mengurus dokumen kependudukan sendiri tanpa lewat calo. Hemat biaya Rp 120.000!",
   },
   {
-    id: 'T08',
-    tipe: 'uang',
+    id: "T08",
+    judul: "Kolektor Tanaman Hias",
+    tipe: "uang",
     nilai: 180000,
-    teks: 'Tanaman hias di teras rumah ditawar kolektor yang lewat. Untung bersih Rp 180.000.'
+    animasi: "confetti",
+    teks: "Tanaman hias di teras rumah ditawar kolektor yang lewat. Untung bersih Rp 180.000.",
   },
   {
-    id: 'T09',
-    tipe: 'pindah',
+    id: "T09",
+    judul: "Panggilan Kerja Korporat",
+    tipe: "pindah",
     nilai: 39,
-    teks: 'Dapat panggilan wawancara kerja bergengsi! Maju ke SCBD Jakarta.'
+    animasi: "pindah",
+    teks: "Dapat panggilan wawancara kerja bergengsi! Maju langsung ke SCBD Jakarta.",
   },
   {
-    id: 'T10',
-    tipe: 'uang',
+    id: "T10",
+    judul: "Refund Tagihan Meteran",
+    tipe: "uang",
     nilai: 90000,
-    teks: 'Kelebihan bayar tagihan meteran bulan lalu dikembalikan otomatis sebesar Rp 90.000.'
+    animasi: "confetti",
+    teks: "Kelebihan bayar tagihan meteran bulan lalu dikembalikan otomatis sebesar Rp 90.000.",
   },
   {
-    id: 'T11',
-    tipe: 'terimaDariSemua',
+    id: "T11",
+    judul: "Bendahara Arisan RT",
+    tipe: "terimaDariSemua",
     nilai: 40000,
-    teks: 'Menjadi bendahara arisan RT yang amanah. Terima iuran kas Rp 40.000 dari setiap pemain.'
+    animasi: "confetti",
+    teks: "Menjadi bendahara arisan RT yang amanah. Terima iuran kas Rp 40.000 dari setiap pemain.",
   },
   {
-    id: 'T12',
-    tipe: 'pindah',
+    id: "T12",
+    judul: "Wisata Kuliner Malam",
+    tipe: "pindah",
     nilai: 1,
-    teks: 'Diajak teman berburu kuliner malam murah meriah. Pindah ke petak Bekasi.'
+    animasi: "pindah",
+    teks: "Diajak teman berburu kuliner malam murah meriah. Pindah ke petak Bekasi.",
   },
   {
-    id: 'T13',
-    tipe: 'uang',
+    id: "T13",
+    judul: "Setoran Bank Sampah",
+    tipe: "uang",
     nilai: 160000,
-    teks: 'Jual kardus bekas dan botol plastik ke bank sampah kelurahan, cair Rp 160.000.'
+    animasi: "confetti",
+    teks: "Jual kardus bekas dan botol plastik ke bank sampah kelurahan, cair Rp 160.000.",
   },
   {
-    id: 'T14',
-    tipe: 'uang',
+    id: "T14",
+    judul: "Cashback Akhir Bulan",
+    tipe: "uang",
     nilai: 110000,
-    teks: 'Cashback belanja bulanan akhirnya masuk saldo dompet digital sebesar Rp 110.000.'
+    animasi: "confetti",
+    teks: "Cashback belanja bulanan akhirnya masuk saldo dompet digital sebesar Rp 110.000.",
   },
   {
-    id: 'T15',
-    tipe: 'uang',
+    id: "T15",
+    judul: "THR Warung Langganan",
+    tipe: "uang",
     nilai: 140000,
-    teks: 'Warung kopi langganan bagi-bagi THR pelanggan setia. Kamu dapat Rp 140.000!'
-  }
+    animasi: "confetti",
+    teks: "Warung kopi langganan bagi-bagi THR pelanggan setia. Kamu dapat Rp 140.000!",
+  },
 ];
 
 export const MUSIBAH_CARDS = [
   {
-    id: 'M01',
-    tipe: 'uang',
+    id: "M01",
+    judul: "Kurang Fotokopi Legalisir",
+    tipe: "uang",
     nilai: -120000,
-    teks: 'Kurang fotokopi KTP yang sudah dilegalisir rangkap 5. Terpaksa bayar jasa kilat Rp 120.000.'
+    animasi: "tagihan",
+    teks: "Kurang fotokopi KTP yang sudah dilegalisir rangkap 5. Terpaksa bayar jasa kilat Rp 120.000.",
   },
   {
-    id: 'M02',
-    tipe: 'uang',
+    id: "M02",
+    judul: "Teror Kontak Darurat",
+    tipe: "uang",
     nilai: -150000,
-    teks: 'Nomor HP tiba-tiba dijadikan kontak darurat pinjol oleh kenalan lama. Habis pulsa & biaya blokir Rp 150.000.'
+    animasi: "tagihan",
+    teks: "Nomor HP tiba-tiba dijadikan kontak darurat pinjol oleh kenalan lama. Habis pulsa & biaya ganti nomor Rp 150.000.",
   },
   {
-    id: 'M03',
-    tipe: 'uang',
+    id: "M03",
+    judul: "E-Meterai Gagal Muat",
+    tipe: "uang",
     nilai: -80000,
-    teks: 'Beli e-meterai untuk pendaftaran online tapi server gagal memuat berkali-kali. Rugi Rp 80.000.'
+    animasi: "tagihan",
+    teks: "Beli e-meterai untuk pendaftaran online tapi server gagal memuat berkali-kali. Rugi Rp 80.000.",
   },
   {
-    id: 'M04',
-    tipe: 'bayarPerBangunan',
+    id: "M04",
+    judul: "Iuran Saluran Air Komplek",
+    tipe: "bayarPerBangunan",
     nilai: 35000,
-    teks: 'Iuran wajib perbaikan saluran air & portal komplek: bayar Rp 35.000 untuk setiap level bangunan yang kamu miliki.'
+    animasi: "banjir",
+    teks: "Iuran wajib perbaikan saluran air & portal komplek: bayar Rp 35.000 untuk setiap level bangunan yang kamu miliki.",
   },
   {
-    id: 'M05',
-    tipe: 'penjara',
+    id: "M05",
+    judul: "Dokumen Editan Warnet",
+    tipe: "penjara",
     nilai: 10,
-    teks: 'Tertangkap basah memakai dokumen domisili hasil editan warnet. Langsung masuk Lapas Cipinang!'
+    animasi: "penjara",
+    teks: "Tertangkap basah memakai dokumen domisili hasil editan warnet. Langsung masuk Lapas Cipinang!",
   },
   {
-    id: 'M06',
-    tipe: 'uang',
+    id: "M06",
+    judul: "Peluit Parkir Misterius",
+    tipe: "uang",
     nilai: -100000,
-    teks: 'Parkir 5 menit di minimarket bertuliskan "Parkir Gratis", tiba-tiba muncul peluit dari balik tiang. Bayar Rp 100.000.'
+    animasi: "tagihan",
+    teks: 'Parkir 5 menit di minimarket bertuliskan "Parkir Gratis", tiba-tiba muncul peluit dari balik tiang. Bayar Rp 100.000.',
   },
   {
-    id: 'M07',
-    tipe: 'uang',
+    id: "M07",
+    judul: "Mogok Terobos Banjir",
+    tipe: "uang",
     nilai: -140000,
-    teks: 'Motor mogok karena menerobos genangan banjir tahunan. Biaya servis karburator Rp 140.000.'
+    animasi: "banjir",
+    teks: "Motor mogok karena menerobos genangan banjir tahunan. Biaya servis turun mesin Rp 140.000.",
   },
   {
-    id: 'M08',
-    tipe: 'pindah',
+    id: "M08",
+    judul: "Verifikasi Tata Ruang",
+    tipe: "pindah",
     nilai: 20,
-    teks: 'Dipanggil ke kantor pertanahan untuk verifikasi tata ruang mendadak. Pindah ke petak Tanah Disita Negara!'
+    animasi: "pindah",
+    teks: "Dipanggil ke kantor pertanahan untuk verifikasi tata ruang mendadak. Pindah ke petak Tanah Disita Negara!",
   },
   {
-    id: 'M09',
-    tipe: 'bayarPerBangunan',
+    id: "M09",
+    judul: "Renovasi Pagar Serentak",
+    tipe: "bayarPerBangunan",
     nilai: 40000,
-    teks: 'Penertiban bangunan liar dan pengecatan ulang pagar serentak. Bayar Rp 40.000 per level bangunan milikmu.'
+    animasi: "gempa",
+    teks: "Penertiban bangunan liar dan pengecatan ulang pagar serentak. Bayar Rp 40.000 per level bangunan milikmu.",
   },
   {
-    id: 'M10',
-    tipe: 'uang',
+    id: "M10",
+    judul: "Server Sedang Offline",
+    tipe: "uang",
     nilai: -90000,
-    teks: 'Sudah antre dari pukul 05.30 pagi, pas giliran maju petugas bilang "Server sedang offline". Habis ongkos Rp 90.000.'
+    animasi: "tagihan",
+    teks: 'Sudah antre dari pukul 05.30 pagi, pas giliran maju petugas bilang "Server sedang offline". Habis ongkos Rp 90.000.',
   },
   {
-    id: 'M11',
-    tipe: 'uang',
+    id: "M11",
+    judul: "Calo Loket Sebelah",
+    tipe: "uang",
     nilai: -130000,
-    teks: 'Tergiur calo antrean cepat yang ternyata cuma mengantar ke loket sebelah. Rugi Rp 130.000.'
+    animasi: "tagihan",
+    teks: "Tergiur calo antrean cepat yang ternyata cuma mengantar ke loket sebelah. Rugi Rp 130.000.",
   },
   {
-    id: 'M12',
-    tipe: 'penjara',
+    id: "M12",
+    judul: "Terobos Jalur Khusus",
+    tipe: "penjara",
     nilai: 10,
-    teks: 'Nekat menerobos jalur khusus dan berdebat dengan petugas saat razia gabungan. Masuk Lapas Cipinang!'
+    animasi: "penjara",
+    teks: "Nekat menerobos jalur khusus dan berdebat dengan petugas saat razia gabungan. Masuk Lapas Cipinang!",
   },
   {
-    id: 'M13',
-    tipe: 'uang',
+    id: "M13",
+    judul: "Korsleting Gardu Komplek",
+    tipe: "uang",
     nilai: -110000,
-    teks: 'Tagihan air membengkak gara-gara pipa bocor di bawah keramik. Bayar tukang Rp 110.000.'
+    animasi: "kebakaran",
+    teks: "stabilizer elektronik di rumah rusak akibat lonjakan listrik gardu. Bayar servis Rp 110.000.",
   },
   {
-    id: 'M14',
-    tipe: 'uang',
+    id: "M14",
+    judul: "Denda Tanggal Merah",
+    tipe: "uang",
     nilai: -75000,
-    teks: 'Kena denda keterlambatan administrasi 1 hari karena tanggal merah beruntun. Bayar Rp 75.000.'
+    animasi: "tagihan",
+    teks: "Kena denda keterlambatan administrasi 1 hari karena tanggal merah beruntun. Bayar Rp 75.000.",
   },
   {
-    id: 'M15',
-    tipe: 'pindah',
+    id: "M15",
+    judul: "Kurang Bukti Potong SPT",
+    tipe: "pindah",
     nilai: 4,
-    teks: 'Laporan SPT tahunan kurang lampiran bukti potong. Pindah langsung ke petak Pajak Tahunan!'
-  }
+    animasi: "pindah",
+    teks: "Laporan SPT tahunan kurang lampiran bukti potong. Pindah langsung ke petak Pajak Tahunan!",
+  },
 ];
