@@ -1,0 +1,21 @@
+{
+  "name": "wni-simulator",
+  "version": "1.0.0",
+  "description": "Board game 3D satir kehidupan Warga Negara Indonesia dengan Three.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "gsap": "^3.12.5",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
