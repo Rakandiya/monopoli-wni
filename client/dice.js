@@ -100,8 +100,9 @@ export class Dice3D {
 
   // Menghitung rotasi Euler (x, y, z) agar angka `val` berada tepat menghadap ke atas (+Y)
   _getTargetRotationForValue(val) {
-    const extraSpinsX = (2 + Math.floor(Math.random() * 2)) * Math.PI * 2;
-    const extraSpinsZ = (2 + Math.floor(Math.random() * 2)) * Math.PI * 2;
+    // 4 hingga 5 putaran penuh (360 derajat) agar putaran dadu terlihat berputar mantap selama durasi animasi yang lebih panjang
+    const extraSpinsX = (4 + Math.floor(Math.random() * 2)) * Math.PI * 2;
+    const extraSpinsZ = (4 + Math.floor(Math.random() * 2)) * Math.PI * 2;
 
     switch (val) {
       case 1:
@@ -125,48 +126,82 @@ export class Dice3D {
   animateRoll(val1, val2) {
     return new Promise((resolve) => {
       const results = [val1, val2];
+      const duration = 1.85; // Durasi lemparan diperpanjang agar putaran dan pantulan lebih santai & dramatis
+
       const tl = gsap.timeline({
-        onComplete: () => resolve()
+        onComplete: () => {
+          // Beri jeda/delay (850ms) agar pemain dapat melihat hasil angka dadu dengan tenang sebelum pion bergerak
+          setTimeout(() => resolve(), 850);
+        }
       });
 
+      // Randomisasi titik pendaratan lemparan dadu (jauh vs dekat & kiri vs kanan):
+      // - Z Dekat  : ~3.2 s/d 4.0 (dekat ke sisi pemain/depan kamera)
+      // - Z Sedang : ~1.2 s/d 2.8 (di area tengah depan)
+      // - Z Jauh   : ~ -0.7 s/d 0.8 (terlempar jauh ke tengah/seberang pulau)
+      const centerZ = -0.7 + Math.random() * 4.5; // Rentang Z antara -0.7 s/d +3.8
+      const centerX = (Math.random() - 0.5) * 4.2; // Rentang X antara -2.1 s/d +2.1
+
+      // Sudut hamburan & jarak pemisah antar kedua dadu agar mendarat berdampingan secara alami tanpa saling bertumpukan
+      const spreadAngle = Math.random() * Math.PI * 2;
+      const spreadDist = 1.35 + Math.random() * 0.75; // Jarak pisah 1.35 - 2.1 unit
+      const halfDist = spreadDist / 2;
+      const offX = Math.cos(spreadAngle) * halfDist;
+      const offZ = Math.sin(spreadAngle) * halfDist;
+
+      const targets = [
+        { x: centerX - offX, z: centerZ - offZ },
+        { x: centerX + offX, z: centerZ + offZ }
+      ];
+
       this.diceMeshes.forEach((mesh, idx) => {
+        const target = targets[idx];
         const targetRot = this._getTargetRotationForValue(results[idx]);
-        const targetX = idx === 0 ? -1.15 : 1.15;
-        const targetZ = 3.1 + (idx === 0 ? -0.2 : 0.2);
 
-        // Reset posisi awal lemparan dari atas
-        mesh.position.set(targetX - 1.5, 3.8, targetZ + 1.8);
-        mesh.rotation.set(0, 0, 0);
+        // Posisi awal lemparan: Melambung tinggi dari arah depan bawah pemain menuju titik target
+        const throwStartZ = Math.min(8.5, target.z + 3.2 + Math.random() * 2.2);
+        const throwStartX = target.x + (idx === 0 ? -1.3 : 1.3) + (Math.random() - 0.5) * 0.8;
+        const throwStartY = 4.8 + Math.random() * 1.4;
 
+        mesh.position.set(throwStartX, throwStartY, throwStartZ);
+        mesh.rotation.set(
+          (Math.random() - 0.5) * Math.PI,
+          Math.random() * Math.PI,
+          (Math.random() - 0.5) * Math.PI
+        );
+
+        // Pergerakan horizontal (X & Z) meluncur menuju titik berhenti yang dirandom
         tl.to(
           mesh.position,
           {
-            x: targetX,
-            z: targetZ,
-            duration: 0.65,
+            x: target.x,
+            z: target.z,
+            duration: duration,
             ease: 'power2.out'
           },
           0
         );
 
+        // Pergerakan vertikal (Y): Melambung dan memantul jatuh di permukaan papan (tinggi 0.76)
         tl.to(
           mesh.position,
           {
             y: 0.76,
-            duration: 0.65,
+            duration: duration,
             ease: 'bounce.out'
           },
           0
         );
 
+        // Putaran dadu: Berguling beberapa putaran lalu berhenti persis di angka target
         tl.to(
           mesh.rotation,
           {
             x: targetRot.x,
             y: targetRot.y,
             z: targetRot.z,
-            duration: 0.65,
-            ease: 'power2.out'
+            duration: duration,
+            ease: 'power3.out'
           },
           0
         );

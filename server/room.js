@@ -19,7 +19,7 @@ export class RoomManager {
   _setupSocketHandlers() {
     this.io.on("connection", (socket) => {
       socket.on("createRoom", (payload, callback) => {
-        const { nama, warna, token } = payload || {};
+        const { nama, warna, karakter, token } = payload || {};
         const sessionToken = token || this._generateToken();
         const roomCode = this._generateRoomCode();
 
@@ -35,6 +35,7 @@ export class RoomManager {
               socketId: socket.id,
               nama: (nama || "Warga 1").slice(0, 20),
               warna: warna || "#ef4444",
+              karakter: karakter || "keponakan_pejabat",
               connected: true,
               micMuted: false,
             },
@@ -59,7 +60,7 @@ export class RoomManager {
       });
 
       socket.on("joinRoom", (payload, callback) => {
-        const { roomCode: rawCode, nama, warna, token } = payload || {};
+        const { roomCode: rawCode, nama, warna, karakter, token } = payload || {};
         const roomCode = (rawCode || "").trim().toUpperCase();
         const room = this.rooms.get(roomCode);
 
@@ -114,6 +115,7 @@ export class RoomManager {
           socketId: socket.id,
           nama: (nama || `Warga ${room.players.length + 1}`).slice(0, 20),
           warna: chosenColor,
+          karakter: karakter || "keponakan_pejabat",
           connected: true,
           micMuted: false,
         });
@@ -187,6 +189,7 @@ export class RoomManager {
             id: p.id,
             nama: p.nama,
             warna: p.warna,
+            karakter: p.karakter,
           })),
         );
 
@@ -533,6 +536,7 @@ export class RoomManager {
         id: p.id,
         nama: p.nama,
         warna: p.warna,
+        karakter: p.karakter,
         connected: p.connected,
         micMuted: Boolean(p.micMuted),
         isHost: p.token === room.hostToken,

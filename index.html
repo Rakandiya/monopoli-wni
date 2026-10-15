@@ -45,55 +45,76 @@
       }
 
       /* Header Bar */
+      /* Header Bar - Single Row Non-Wrapping */
       .top-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
+        gap: 8px;
+        flex-wrap: nowrap;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .top-bar::-webkit-scrollbar {
+        display: none;
       }
 
       .brand-badge {
         background: linear-gradient(
           135deg,
-          rgba(185, 28, 28, 0.92),
-          rgba(127, 29, 29, 0.92)
+          rgba(185, 28, 28, 0.95),
+          rgba(127, 29, 29, 0.95)
         );
-        border: 2px solid #fca5a5;
-        border-radius: 12px;
-        padding: 8px 16px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        border: 1.5px solid #fca5a5;
+        border-radius: 9px;
+        padding: 4px 10px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .brand-title {
-        font-size: 1.15rem;
+        font-size: 0.94rem;
         font-weight: 800;
         letter-spacing: 0.5px;
         color: #fef2f2;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+
+      .mode-pill {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #fecaca;
+        background: rgba(0, 0, 0, 0.28);
+        padding: 2px 7px;
+        border-radius: 999px;
+        white-space: nowrap;
       }
 
       .round-pill {
         background: rgba(15, 23, 42, 0.85);
-        padding: 5px 11px;
+        padding: 3px 9px;
         border-radius: 999px;
-        font-size: 0.8rem;
+        font-size: 0.74rem;
         font-weight: 700;
         color: #fde047;
         border: 1px solid rgba(253, 224, 71, 0.4);
+        white-space: nowrap;
       }
 
       .timer-pill {
         background: rgba(15, 23, 42, 0.9);
-        padding: 5px 11px;
+        padding: 3px 9px;
         border-radius: 999px;
-        font-size: 0.8rem;
+        font-size: 0.74rem;
         font-weight: 800;
         color: #38bdf8;
         border: 1px solid rgba(56, 189, 248, 0.45);
+        white-space: nowrap;
       }
 
       .timer-pill.urgent {
@@ -104,23 +125,25 @@
 
       .top-actions {
         display: flex;
-        gap: 7px;
+        gap: 6px;
         align-items: center;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
       }
 
       .audio-controls-group {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         background: rgba(15, 23, 42, 0.9);
         border: 1px solid #475569;
-        padding: 4px 9px;
-        border-radius: 10px;
+        padding: 3px 7px;
+        border-radius: 8px;
+        flex-shrink: 0;
       }
 
       .volume-slider {
-        width: 64px;
+        width: 48px;
         accent-color: #facc15;
         cursor: pointer;
       }
@@ -129,11 +152,12 @@
         background: rgba(15, 23, 42, 0.88);
         color: #e2e8f0;
         border: 1px solid #475569;
-        padding: 7px 11px;
-        border-radius: 8px;
+        padding: 4px 8px;
+        border-radius: 6px;
         cursor: pointer;
-        font-weight: 600;
-        font-size: 0.78rem;
+        font-weight: 700;
+        font-size: 0.74rem;
+        white-space: nowrap;
         transition: all 0.15s ease;
       }
 
@@ -531,6 +555,198 @@
         font-weight: 800;
       }
 
+      /* Tombol Zoom Kartu HD di Inspector */
+      .btn-zoom-card {
+        width: 100%;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+        color: #0f172a;
+        border: none;
+        border-radius: 8px;
+        font-weight: 800;
+        padding: 7px 10px;
+        font-size: 0.77rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        box-shadow: 0 3px 10px rgba(250, 204, 21, 0.35);
+        transition: transform 0.15s, background 0.2s;
+      }
+      .btn-zoom-card:hover {
+        transform: translateY(-1px);
+        background: linear-gradient(135deg, #fde047 0%, #facc15 100%);
+      }
+
+      /* Floating Focus Pill Saat Kamera Menyorot Petak (Dipindah ke atas & auto-hide) */
+      .tile-focus-pill {
+        position: fixed;
+        top: 54px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.94);
+        backdrop-filter: blur(10px);
+        border: 1.5px solid rgba(250, 204, 21, 0.55);
+        padding: 5px 14px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        z-index: 45;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+        color: #f8fafc;
+        font-size: 0.78rem;
+        font-weight: 800;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        animation: focusPillPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .tile-focus-pill.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-50%) translateY(-12px);
+      }
+      @keyframes focusPillPop {
+        from { opacity: 0; transform: translate(-50%, -10px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+      }
+      .btn-focus-return {
+        background: #eab308;
+        color: #0f172a;
+        border: none;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        font-size: 0.72rem;
+        transition: background 0.15s, transform 0.15s;
+        white-space: nowrap;
+      }
+      .btn-focus-return:hover {
+        background: #fde047;
+        transform: scale(1.05);
+      }
+
+
+
+      /* Modal Pop-up Kartu HD Besar */
+      .deed-modal-card {
+        background: #0f172a;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        padding: 18px;
+        max-width: 360px;
+        width: 90vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.85);
+        color: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .deed-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background: rgba(255, 255, 255, 0.12);
+        border: none;
+        color: #fff;
+        font-size: 1.4rem;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        transition: background 0.2s;
+        z-index: 10;
+      }
+      .deed-close-btn:hover {
+        background: #ef4444;
+      }
+
+      /* Console Drawer / Modal Styles */
+      .btn-console-tab {
+        background: transparent;
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        padding: 3px 9px;
+        border-radius: 5px;
+        font-size: 0.73rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-console-tab:hover {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+      }
+      .btn-console-tab.active {
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+        font-weight: 700;
+      }
+      .console-log-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        word-break: break-word;
+      }
+      .console-log-row:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .console-log-row.log-info {
+        color: #e2e8f0;
+      }
+      .console-log-row.log-warn {
+        color: #fde047;
+        background: rgba(234, 179, 8, 0.08);
+      }
+      .console-log-row.log-error {
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.14);
+      }
+      .console-log-row.log-debug {
+        color: #94a3b8;
+      }
+      .console-tag {
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 1px 5px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .console-tag.tag-info { background: #0369a1; color: #bae6fd; }
+      .console-tag.tag-warn { background: #854d0e; color: #fef08a; }
+      .console-tag.tag-error { background: #991b1b; color: #fecaca; }
+      .console-tag.tag-debug { background: #334155; color: #cbd5e1; }
+      .console-time {
+        color: #64748b;
+        font-size: 0.72rem;
+        flex-shrink: 0;
+      }
+      .console-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        background: #ef4444;
+        color: #fff;
+        border-radius: 9px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        margin-left: 4px;
+      }
+
       .log-list {
         height: 185px;
         overflow-y: auto;
@@ -561,79 +777,219 @@
       }
 
       /* Panel Bawah: Tombol Aksi Utama */
+      /* Bar Bawah: Kontrol Giliran (Get Rich Style) */
       .bottom-bar {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        z-index: 30;
       }
 
       .dice-banner {
-        background: rgba(15, 23, 42, 0.92);
-        border: 1px solid rgba(250, 204, 21, 0.45);
-        padding: 6px 18px;
+        background: rgba(15, 23, 42, 0.94);
+        backdrop-filter: blur(8px);
+        border: 1.5px solid rgba(250, 204, 21, 0.55);
+        padding: 6px 20px;
         border-radius: 999px;
-        font-weight: 700;
-        font-size: 0.88rem;
+        font-weight: 800;
+        font-size: 0.85rem;
         color: #fef08a;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        letter-spacing: 0.3px;
+        transition: all 0.2s ease;
       }
 
       .action-buttons {
         display: flex;
-        gap: 8px;
-        background: rgba(15, 23, 42, 0.92);
-        padding: 9px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
-        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
         justify-content: center;
+        flex-wrap: wrap;
+        min-height: 52px;
       }
 
       .btn-action {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        font-size: 0.88rem;
-        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: 12px 28px;
+        border-radius: 999px;
+        font-size: 0.95rem;
+        font-weight: 900;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
         cursor: pointer;
-        transition:
-          transform 0.12s ease,
-          opacity 0.15s ease,
-          background 0.15s ease;
-        color: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45), 0 10px 24px rgba(0, 0, 0, 0.55), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+        transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s ease, filter 0.15s ease;
+        user-select: none;
+        color: #ffffff;
       }
 
       .btn-action:hover:not(:disabled) {
         transform: translateY(-2px);
+        filter: brightness(1.1);
+        box-shadow: 0 7px 0 rgba(0, 0, 0, 0.45), 0 14px 28px rgba(0, 0, 0, 0.65), inset 0 2px 2px rgba(255, 255, 255, 0.75);
+      }
+
+      .btn-action:active:not(:disabled) {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
       }
 
       .btn-action:disabled {
-        opacity: 0.32;
+        opacity: 0.45;
         cursor: not-allowed;
-        transform: none;
+        filter: grayscale(0.5);
+        transform: none !important;
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3) !important;
       }
 
+      /* Get Rich: ROLL DICE (Emas Berkilau & Sedikit Membal) */
       .btn-roll {
-        background: linear-gradient(135deg, #eab308, #ca8a04);
-        color: #0f172a;
+        background: linear-gradient(180deg, #fef08a 0%, #facc15 32%, #eab308 68%, #ca8a04 100%);
+        color: #451a03;
+        border-color: #fef9c3;
+        box-shadow: 0 5px 0 #854d0e, 0 10px 25px rgba(234, 179, 8, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.9);
+        padding: 13px 36px;
+        font-size: 1.05rem;
+        animation: getRichPulse 2.2s infinite ease-in-out;
+      }
+      .btn-roll:hover:not(:disabled) {
+        box-shadow: 0 7px 0 #854d0e, 0 14px 30px rgba(250, 204, 21, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.95);
+      }
+      .btn-roll:active:not(:disabled) {
+        box-shadow: 0 2px 0 #854d0e, 0 5px 12px rgba(234, 179, 8, 0.4);
       }
 
+      /* Get Rich: BELI TANAH (Hijau Zamrud Segar) */
       .btn-buy {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
+        background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 28%, #22c55e 65%, #15803d 100%);
+        color: #052e16;
+        border-color: #dcfce7;
+        box-shadow: 0 5px 0 #14532d, 0 10px 25px rgba(34, 197, 94, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.9);
+        padding: 12px 30px;
+      }
+      .btn-buy:hover:not(:disabled) {
+        box-shadow: 0 7px 0 #14532d, 0 14px 30px rgba(74, 222, 128, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.95);
+      }
+      .btn-buy:active:not(:disabled) {
+        box-shadow: 0 2px 0 #14532d, 0 5px 12px rgba(34, 197, 94, 0.4);
       }
 
+      /* Get Rich: LEWATI / TIDAK JADI (Abu-abu Slate Ramping) */
       .btn-skip {
-        background: linear-gradient(135deg, #64748b, #475569);
+        background: linear-gradient(180deg, #94a3b8 0%, #64748b 35%, #475569 70%, #334155 100%);
+        color: #f8fafc;
+        border-color: #cbd5e1;
+        box-shadow: 0 5px 0 #1e293b, 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+        padding: 12px 24px;
+      }
+      .btn-skip:hover:not(:disabled) {
+        box-shadow: 0 7px 0 #1e293b, 0 12px 24px rgba(100, 116, 139, 0.65);
       }
 
+      /* Get Rich: TEBUS LAPAS (Oranye Menyala) */
       .btn-jail-pay {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: linear-gradient(180deg, #fed7aa 0%, #fb923c 30%, #ea580c 70%, #c2410c 100%);
+        color: #431407;
+        border-color: #ffedd5;
+        box-shadow: 0 5px 0 #7c2d12, 0 10px 24px rgba(234, 88, 12, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.85);
+        padding: 12px 24px;
       }
 
-      .btn-end {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+      /* Get Rich: AKHIRI GILIRAN (Biru Azure Modern) */
+      .btn-end, .btn-end-turn {
+        background: linear-gradient(180deg, #bae6fd 0%, #38bdf8 30%, #0284c7 70%, #0369a1 100%);
+        color: #082f49;
+        border-color: #e0f2fe;
+        box-shadow: 0 5px 0 #075985, 0 10px 25px rgba(2, 132, 199, 0.55), inset 0 2px 3px rgba(255, 255, 255, 0.85);
+        padding: 12px 32px;
+      }
+      .btn-end:hover:not(:disabled), .btn-end-turn:hover:not(:disabled) {
+        box-shadow: 0 7px 0 #075985, 0 14px 30px rgba(56, 189, 248, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.95);
+      }
+
+      @keyframes getRichPulse {
+        0%, 100% {
+          transform: scale(1);
+          filter: brightness(1);
+        }
+        50% {
+          transform: scale(1.035);
+          filter: brightness(1.12);
+        }
+      }
+
+      /* Tombol Sembunyikan Panel Informasi Petak */
+      .btn-panel-close {
+        background: rgba(239, 68, 68, 0.18);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 800;
+        transition: all 0.15s ease;
+      }
+      .btn-panel-close:hover {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #ef4444;
+        transform: scale(1.1);
+      }
+
+      .btn-panel-close.collapsed {
+        background: rgba(56, 189, 248, 0.2);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.45);
+      }
+      .btn-panel-close.collapsed:hover {
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+      }
+
+      /* Tombol Sub-Toggle Info Petak di Header Kronologi (Menyatu/Nyambung) */
+      .btn-sub-toggle {
+        background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(202, 138, 4, 0.25) 100%);
+        border: 1px solid rgba(250, 204, 21, 0.45);
+        color: #fde047;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.15s ease;
+        line-height: 1.2;
+        max-width: 175px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .btn-sub-toggle:hover {
+        background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+        color: #0f172a;
+        border-color: #fde047;
+        transform: scale(1.03);
+        box-shadow: 0 2px 8px rgba(250, 204, 21, 0.4);
+      }
+      .btn-sub-toggle.active {
+        background: #eab308;
+        color: #0f172a;
+        border-color: #fde047;
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
       }
 
       /* Modal Lobby & Pop-up Kartu 3D Flip (Tugas 3) */
@@ -861,17 +1217,10 @@
       <div>
         <div class="top-bar">
           <div class="brand-badge interactive">
-            <div>
-              <div class="brand-title">WNI SIMULATOR 3D</div>
-              <div
-                id="mode-subtitle"
-                style="font-size: 0.72rem; color: #fecaca"
-              >
-                Edisi Bertahan Hidup Warga +62
-              </div>
-            </div>
-            <div id="round-indicator" class="round-pill">Putaran 1 / 80</div>
-            <div id="turn-timer-pill" class="timer-pill hidden">60d</div>
+            <span class="brand-title">WNI SIMULATOR 3D</span>
+            <span id="mode-subtitle" class="mode-pill">Hot-Seat</span>
+            <span id="round-indicator" class="round-pill">Putaran 1 / 80</span>
+            <span id="turn-timer-pill" class="timer-pill hidden">60d</span>
           </div>
 
           <div class="top-actions interactive">
@@ -924,12 +1273,32 @@
               Panel Uji
             </button>
             <button
+              id="btn-toggle-console"
+              class="btn-small console-btn"
+              title="Buka Console Log Sistem & Debug (Atau tekan F12 di keyboard)"
+              style="background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700;"
+            >
+              📋 Log Console <span id="console-badge" class="console-badge hidden">0</span>
+            </button>
+            <button
               id="btn-reset-cam"
               class="btn-small"
-              title="Kembalikan Sudut Kamera"
+              title="Kembalikan Sudut Kamera Seluruh Papan"
             >
               Reset Kamera
             </button>
+            <select
+              id="cam-view-select"
+              class="btn-small"
+              style="background: #1e293b; color: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.35); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.76rem; font-weight: 700;"
+              title="Pilih Sudut Pandang Sisi Papan (Agar Tegak Lurus & Mudah Dibaca)"
+            >
+              <option value="overview">🌐 Tampilan Penuh</option>
+              <option value="side-0">⬇️ Sisi Depan (Bekasi - Cikarang)</option>
+              <option value="side-1">⬅️ Sisi Kiri (Bandung - Jogja)</option>
+              <option value="side-2">⬆️ Sisi Atas (Surabaya - Batam)</option>
+              <option value="side-3">➡️ Sisi Kanan (Makassar - SCBD)</option>
+            </select>
             <button
               id="btn-leave-room"
               class="btn-small danger-btn"
@@ -976,6 +1345,13 @@
           <button class="btn-debug-item audio-test" data-test="sfx-pungli">
             SFX Pungli
           </button>
+          <button
+            id="btn-open-console-inside-debug"
+            class="btn-debug-item"
+            style="border-color: #38bdf8; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.1);"
+          >
+            📋 Buka Log Console
+          </button>
         </div>
       </div>
 
@@ -1002,43 +1378,70 @@
 
         <!-- Panel Kanan: Detail Petak + Tabel Sewa per Level (Tugas 4) & Log Kejadian -->
         <div class="right-panel interactive">
-          <div class="panel-card">
+          <!-- Card Informasi Petak & Tabel Sewa -->
+          <div class="panel-card" id="card-tile-info" style="display: none;">
             <div class="panel-title">
               <span>Informasi Petak & Tabel Sewa</span>
-              <span id="tile-index-label">#0</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="tile-index-label">#0</span>
+                <button id="btn-close-tile-info" class="btn-panel-close" title="Tutup / Sembunyikan Detail Petak">✕</button>
+              </div>
             </div>
             <div id="tile-inspector" class="tile-inspector"></div>
           </div>
 
-          <div class="panel-card">
-            <div class="panel-title">
-              <span>Kronologi Kejadian (+62)</span>
+          <!-- Card Kronologi Kejadian dengan Tombol Toggle Menyatu / Nyambung -->
+          <div class="panel-card" id="card-log">
+            <div class="panel-title" id="log-card-header" style="cursor: pointer; user-select: none;">
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <span>Kronologi Kejadian (+62)</span>
+                <span id="log-unread-badge" class="badge-tag" style="display: none; background: #ef4444; color: #fff; font-size: 0.65rem;">BARU</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <!-- Tombol Toggle Info Petak: Menyatu / Nyambung langsung di Card Kronologi -->
+                <button id="btn-toggle-tile-info" class="btn-sub-toggle" title="Buka / Tutup Informasi Petak & Tabel Sewa">
+                  <span id="btn-toggle-tile-text">📋 Info Petak</span>
+                  <span id="btn-toggle-tile-icon">▾</span>
+                </button>
+                <!-- Tombol Toggle / Close untuk Kronologi Kejadian -->
+                <button id="btn-toggle-log" class="btn-panel-close" title="Sembunyikan / Buka Kronologi Kejadian">
+                  <span id="btn-toggle-log-icon">✕</span>
+                </button>
+              </div>
             </div>
-            <div id="log-list" class="log-list"></div>
+            <div id="log-list-wrap">
+              <div id="log-list" class="log-list"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Bar Bawah: Kontrol Giliran -->
+      <!-- Floating Focus Pill saat Kamera Menyorot Petak Tertentu -->
+      <div id="tile-focus-pill" class="tile-focus-pill interactive hidden">
+        <span id="tile-focus-text">🔍 Menyorot Petak</span>
+        <button id="btn-tile-focus-reset" class="btn-focus-return">Kembali ke Papan ↩️</button>
+      </div>
+
+      <!-- Bar Bawah: Kontrol Giliran (Get Rich Style) -->
       <div class="bottom-bar">
         <div id="status-banner" class="dice-banner interactive">
           Selamat datang di WNI Simulator! Silakan buat atau masuk ke Room.
         </div>
-        <div class="action-buttons interactive">
-          <button id="btn-roll" class="btn-action btn-roll" disabled>
-            Lempar Dadu
+        <div id="action-buttons-wrap" class="action-buttons interactive">
+          <button id="btn-roll" class="btn-action btn-roll" style="display: none;" disabled>
+            <span>🎲</span> <span>Lempar Dadu</span>
           </button>
-          <button id="btn-jail-pay" class="btn-action btn-jail-pay" disabled>
-            Tebus Lapas (Rp 100.000)
+          <button id="btn-jail-pay" class="btn-action btn-jail-pay" style="display: none;" disabled>
+            <span>🔓</span> <span>Tebus Lapas</span>
           </button>
-          <button id="btn-buy" class="btn-action btn-buy" disabled>
-            Beli Tanah
+          <button id="btn-buy" class="btn-action btn-buy" style="display: none;" disabled>
+            <span>🏠</span> <span>Beli Tanah</span>
           </button>
-          <button id="btn-skip" class="btn-action btn-skip" disabled>
-            Tidak Jadi
+          <button id="btn-skip" class="btn-action btn-skip" style="display: none;" disabled>
+            <span>✕</span> <span>Lewati</span>
           </button>
-          <button id="btn-end" class="btn-action btn-end" disabled>
-            Akhiri Giliran
+          <button id="btn-end" class="btn-action btn-end btn-end-turn" style="display: none;" disabled>
+            <span>⏩</span> <span>Akhiri Giliran</span>
           </button>
         </div>
       </div>
@@ -1100,6 +1503,37 @@
                 maxlength="20"
                 placeholder="Masukkan nama Anda..."
               />
+            </div>
+            <!-- Pilihan Kartu Karakter / Privilege Awal -->
+            <div style="margin-top: 8px">
+              <label
+                style="
+                  font-size: 0.78rem;
+                  font-weight: 700;
+                  color: #fde047;
+                  display: block;
+                  margin-bottom: 4px;
+                "
+              >
+                Pilih Kartu Karakter (Privilege Awal):
+              </label>
+              <select
+                id="mp-char-input"
+                class="setup-input"
+                style="width: 100%; font-weight: 700"
+              ></select>
+              <div
+                id="mp-char-desc"
+                style="
+                  font-size: 0.74rem;
+                  color: #cbd5e1;
+                  margin-top: 4px;
+                  padding: 6px 8px;
+                  background: rgba(30, 41, 59, 0.7);
+                  border-radius: 6px;
+                  border-left: 3px solid #facc15;
+                "
+              ></div>
             </div>
           </div>
 
@@ -1264,6 +1698,89 @@
         >
           OK, Jalankan Efek
         </button>
+      </div>
+    </div>
+
+    <!-- Modal Pop-up Kartu Hak Milik HD (Tampilan Penuh Tegak Lurus) -->
+    <div id="deed-modal" class="modal-overlay interactive hidden">
+      <div class="deed-modal-card">
+        <button id="btn-close-deed" class="deed-close-btn">&times;</button>
+        <div id="deed-card-body" style="width: 100%;"></div>
+      </div>
+    </div>
+
+    <!-- Modal Pop-up Log Console In-Game -->
+    <div id="console-modal" class="modal-overlay interactive hidden" style="background: rgba(0,0,0,0.65); z-index: 9999;">
+      <div class="console-box" style="
+        width: 92%;
+        max-width: 860px;
+        height: 520px;
+        background: #090d16;
+        border: 1px solid #38bdf8;
+        border-radius: 12px;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.2);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      ">
+        <div style="
+          padding: 10px 16px;
+          background: #0f172a;
+          border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 8px;
+        ">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.15rem;">🖥️</span>
+            <span style="font-weight: 800; font-size: 0.95rem; color: #f8fafc; letter-spacing: 0.5px;">Console Log Sistem (+62 Debugger)</span>
+            <span id="console-log-count" style="font-size: 0.72rem; background: #1e293b; color: #94a3b8; padding: 2px 8px; border-radius: 999px;">0 log</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button id="btn-console-filter-all" class="btn-console-tab active">Semua</button>
+            <button id="btn-console-filter-log" class="btn-console-tab">Info</button>
+            <button id="btn-console-filter-warn" class="btn-console-tab">Warn</button>
+            <button id="btn-console-filter-error" class="btn-console-tab">Error</button>
+            <button id="btn-console-clear" class="btn-small" style="font-size: 0.74rem; padding: 4px 8px;" title="Bersihkan riwayat log">🗑️ Clear</button>
+            <button id="btn-console-copy" class="btn-small" style="font-size: 0.74rem; padding: 4px 8px;" title="Salin semua log ke clipboard">📋 Copy</button>
+            <button id="btn-close-console" class="deed-close-btn" style="position: static; font-size: 1.3rem; padding: 0 6px; width: 28px; height: 28px;">&times;</button>
+          </div>
+        </div>
+
+        <div id="console-output" style="
+          flex: 1;
+          padding: 12px 14px;
+          overflow-y: auto;
+          font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          background: #020617;
+          color: #e2e8f0;
+          user-select: text;
+        "></div>
+
+        <div style="
+          padding: 8px 14px;
+          background: #0f172a;
+          border-top: 1px solid rgba(148, 163, 184, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 0.73rem;
+          color: #64748b;
+          flex-wrap: wrap;
+          gap: 8px;
+        ">
+          <span>💡 <strong>Tips Browser:</strong> Anda juga bisa menekan tombol <strong>F12</strong> di keyboard (atau klik kanan &gt; <em>Periksa / Inspect</em> &gt; tab <strong>Console</strong>) untuk membuka Console bawaan browser.</span>
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: #94a3b8; font-weight: 600;">
+            <input type="checkbox" id="console-autoscroll" checked /> Auto-scroll
+          </label>
+        </div>
       </div>
     </div>
 

@@ -393,12 +393,12 @@ export class AudioManager {
     this.ensureContext();
     if (this.sfxMuted) return;
     const now = this.ctx.currentTime;
-    const hitTimes = [0, 0.08, 0.16, 0.25, 0.36, 0.48, 0.59];
+    const hitTimes = [0, 0.16, 0.35, 0.58, 0.82, 1.08, 1.32, 1.54, 1.70, 1.82];
 
     hitTimes.forEach((offset, idx) => {
       const t = now + offset;
-      const decay = 0.045;
-      const vol = 0.45 * Math.pow(0.84, idx);
+      const decay = 0.052;
+      const vol = 0.45 * Math.pow(0.86, idx);
 
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -416,9 +416,9 @@ export class AudioManager {
 
       this._playFilteredNoise(
         t,
-        0.03,
+        0.035,
         "bandpass",
-        1400 + idx * 120,
+        1400 + idx * 110,
         3.0,
         vol * 0.6,
       );
@@ -550,7 +550,7 @@ export class AudioManager {
     this.speakEvent("pungli", customVoiceText);
   }
 
-  // SFX Masuk Lapas: Sirine + Besi Sel Berdentang + Narator "Masuk Penjara!"
+  // SFX Masuk Lapas: Sirine Mobil Patroli Penjemput + Pintu Mobil + Narator "Masuk Penjara!"
   playJailSirenAndClang() {
     this.ensureContext();
     if (this.sfxMuted) return;
@@ -560,25 +560,53 @@ export class AudioManager {
     const sirenGain = this.ctx.createGain();
     sirenOsc.type = "triangle";
 
+    // Gelombang sirine "Wiu-Wiu-Wiu" selama mobil menjemput, pion naik, & melaju muterin kartu petak papan (3.8 detik)
     sirenOsc.frequency.setValueAtTime(620, now);
-    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.3);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 0.3);
     sirenOsc.frequency.linearRampToValueAtTime(620, now + 0.6);
-    sirenOsc.frequency.linearRampToValueAtTime(960, now + 0.9);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 0.9);
     sirenOsc.frequency.linearRampToValueAtTime(620, now + 1.2);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 1.5);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 1.8);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 2.1);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 2.4);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 2.7);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 3.0);
+    sirenOsc.frequency.linearRampToValueAtTime(980, now + 3.3);
+    sirenOsc.frequency.linearRampToValueAtTime(620, now + 3.6);
+    sirenOsc.frequency.linearRampToValueAtTime(560, now + 3.85);
 
     sirenGain.gain.setValueAtTime(0.001, now);
     sirenGain.gain.linearRampToValueAtTime(0.32, now + 0.04);
-    sirenGain.gain.setValueAtTime(0.32, now + 1.1);
-    sirenGain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+    sirenGain.gain.setValueAtTime(0.32, now + 3.5);
+    sirenGain.gain.exponentialRampToValueAtTime(0.001, now + 3.9);
 
     sirenOsc.connect(sirenGain);
     sirenGain.connect(this.sfxGain);
     sirenOsc.start(now);
-    sirenOsc.stop(now + 1.28);
+    sirenOsc.stop(now + 3.95);
 
-    // Dentang pintu besi sel tepat saat pion selesai berjalan masuk lewat pintu depan (t + 1.45s)
-    this.playJailDoorClang(1.45);
+    // Bunyi decit rem mobil saat berhenti menjemput di awal (0.35s)
+    this._playFilteredNoiseSweep(now + 0.35, 0.16, "bandpass", 2200, 900, 4.0, 0.25);
+
+    // Bunyi pintu mobil menutup saat kedua polisi dan pion sudah masuk ke dalam kabin (1.25s)
+    this._playFilteredNoise(now + 1.25, 0.09, "lowpass", 420, 1.5, 0.4);
+
+    // Deru akselerasi mobil saat tancap gas muterin kartu petak (1.35s)
+    this._playFilteredNoiseSweep(now + 1.35, 0.45, "lowpass", 160, 560, 1.2, 0.26);
+
     this.speakEvent("jail");
+  }
+
+  // SFX Lemparan Pion ke Dalam Sel Lapas oleh 2 Polisi
+  playJailToss() {
+    this.ensureContext();
+    if (this.sfxMuted) return;
+    const now = this.ctx.currentTime;
+    // Whoosh saat diayun & dilempar kedua polisi
+    this._playFilteredNoiseSweep(now, 0.28, "bandpass", 400, 1600, 2.0, 0.45);
+    // Gedebuk mendarat di lantai dalam sel penjara
+    this._playFilteredNoise(now + 0.35, 0.14, "lowpass", 300, 1.8, 0.55);
   }
 
   playJailDoorClang(delaySeconds = 0) {

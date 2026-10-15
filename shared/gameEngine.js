@@ -6,6 +6,44 @@
 import { BOARD_TILES, COLOR_GROUPS, formatRupiah } from "./tiles.js";
 import { TAKDIR_CARDS, MUSIBAH_CARDS } from "./cards.js";
 
+export const CHARACTER_PRIVILEGES = {
+  keponakan_pejabat: {
+    id: "keponakan_pejabat",
+    nama: "Keponakan Pejabat",
+    ikon: "🏛️",
+    modalAwal: 2000000,
+    deskripsi: "Diskon uang damai Lapas 50% (Rp 50 Rb) & 20% peluang bebas Pajak Tahunan.",
+  },
+  juragan_kos: {
+    id: "juragan_kos",
+    nama: "Juragan Kos-kosan",
+    ikon: "🏘️",
+    modalAwal: 2000000,
+    deskripsi: "Biaya bangun Rumah & Hotel lebih murah 15% di seluruh petak.",
+  },
+  suhu_pinjol: {
+    id: "suhu_pinjol",
+    nama: "Suhu Pinjol",
+    ikon: "📱",
+    modalAwal: 2000000,
+    deskripsi: "Saat uang habis terkena tagihan, cair Dana Talangan Rp 350.000 (1x per game) tanpa jual aset.",
+  },
+  orang_have: {
+    id: "orang_have",
+    nama: "Orang Have",
+    ikon: "💎",
+    modalAwal: 2600000,
+    deskripsi: "Dapat uang modal awal lebih banyak (Rp 2.600.000).",
+  },
+  orang_havent: {
+    id: "orang_havent",
+    nama: "Orang Have'nt",
+    ikon: "🛵",
+    modalAwal: 1600000,
+    deskripsi: "Modal awal lebih sedikit (Rp 1.600.000), tapi diskon bayar sewa tempat tinggal 25%.",
+  },
+};
+
 export const DISASTER_TYPES = [
   { id: "banjir", nama: "Tsunami / Banjir Bandang" },
   { id: "gempa", nama: "Gempa Bumi Tektonik" },
@@ -20,19 +58,32 @@ export class GameEngine {
   }
 
   initGame(playerConfigs) {
-    const players = playerConfigs.map((cfg, idx) => ({
-      id: cfg.id || `p${idx + 1}`,
-      index: idx,
-      nama: cfg.nama || `Warga ${idx + 1}`,
-      warna: cfg.warna || "#ef4444",
-      uang: 2000000,
-      posisi: 0,
-      diPenjara: false,
-      giliranPenjara: 0,
-      jumlahPungli: 0,
-      bangkrut: false,
-      urutanBangkrut: null,
-    }));
+    const privKeys = Object.keys(CHARACTER_PRIVILEGES);
+    const players = playerConfigs.map((cfg, idx) => {
+      const privId =
+        cfg.karakter && CHARACTER_PRIVILEGES[cfg.karakter]
+          ? cfg.karakter
+          : privKeys[idx % privKeys.length];
+      const privData = CHARACTER_PRIVILEGES[privId];
+
+      return {
+        id: cfg.id || `p${idx + 1}`,
+        index: idx,
+        nama: cfg.nama || `Warga ${idx + 1}`,
+        warna: cfg.warna || "#ef4444",
+        karakter: privId,
+        namaKarakter: privData.nama,
+        ikonKarakter: privData.ikon,
+        uang: privData.modalAwal,
+        danaTalanganTerpakai: false, // Khusus Suhu Pinjol (1x per game)
+        posisi: 0,
+        diPenjara: false,
+        giliranPenjara: 0,
+        jumlahPungli: 0,
+        bangkrut: false,
+        urutanBangkrut: null,
+      };
+    });
 
     this.state = {
       players,
@@ -43,17 +94,16 @@ export class GameEngine {
       daduTerakhir: [1, 1],
       jumlahKembarBerturut: 0,
       bolehLemparLagi: false,
-      // WAIT_ROLL | WAIT_CARD_CONFIRM | WAIT_BUY_DECISION | WAIT_END_TURN | GAME_OVER
       fase: "WAIT_ROLL",
       petakBeliTertunda: null,
-      kartuTertunda: null, // { playerId, jenisDeck, kartu }
+      kartuTertunda: null,
       pemenang: null,
       peringkatAkhir: [],
       log: [
         {
           id: Date.now(),
           tipe: "info",
-          teks: "Permainan dimulai! Setiap warga menerima modal awal Rp 2.000.000.",
+          teks: "Permainan dimulai! Setiap warga turun ke Nusantara membawa privilege masing-masing.",
         },
       ],
       takdirDeck: this._shuffle([...TAKDIR_CARDS]),
@@ -61,6 +111,21 @@ export class GameEngine {
     };
 
     return this.getPublicState();
+  }
+
+  // Helper biaya tebus penjara (Keponakan Pejabat diskon 50%)
+  getJailBailCost(player) {
+    if (!player) return 100000;
+    return player.karakter === "keponakan_pejabat" ? 50000 : 100000;
+  }
+
+  // Helper biaya bangun rumah/hotel (Juragan Kos-kosan diskon 15%)
+  getUpgradeCost(player, tile) {
+    if (!tile || !tile.biayaBangun) return 0;
+    if (player && player.karakter === "juragan_kos") {
+      return Math.round(tile.biayaBangun * 0.85);
+    }
+    return tile.biayaBangun;
   }
 
   getPublicState() {
@@ -158,16 +223,22 @@ export class GameEngine {
       return { ok: false, pesan: "Tidak bisa membayar tebusan pada fase ini." };
     if (!player.diPenjara)
       return { ok: false, pesan: "Kamu tidak sedang berada di Lapas." };
-    if (player.uang < 100000)
+
+    const biayaTebus = this.getJailBailCost(player);
+    if (player.uang < biayaTebus)
       return {
         ok: false,
-        pesan: "Uang tunai tidak cukup untuk menebus Rp 100.000.",
+        pesan: `Uang tunai tidak cukup untuk menebus ${formatRupiah(biayaTebus)}.`,
       };
 
-    player.uang -= 100000;
+    player.uang -= biayaTebus;
     player.diPenjara = false;
     player.giliranPenjara = 0;
-    const msg = `${player.nama} membayar biaya pembinaan Rp 100.000 dan bebas dari Lapas Cipinang.`;
+    const notePriv =
+      player.karakter === "keponakan_pejabat"
+        ? " (Diskon 50% Keponakan Pejabat!)"
+        : "";
+    const msg = `${player.nama} membayar uang damai ${formatRupiah(biayaTebus)}${notePriv} dan bebas dari Lapas Cipinang.`;
     this._addLog("info", msg);
 
     return {
@@ -226,7 +297,8 @@ export class GameEngine {
         if (player.giliranPenjara >= 3) {
           player.diPenjara = false;
           player.giliranPenjara = 0;
-          const bebas3Msg = `${player.nama} telah menjalani 3 giliran di Lapas. Bayar administrasi Rp 100.000 dan langsung jalan!`;
+          const biayaAdmin = this.getJailBailCost(player);
+          const bebas3Msg = `${player.nama} telah menjalani 3 giliran di Lapas. Bayar administrasi ${formatRupiah(biayaAdmin)} dan langsung jalan!`;
           this._addLog("warn", bebas3Msg);
           events.push({
             tipe: "JAIL_RELEASE",
@@ -235,7 +307,7 @@ export class GameEngine {
           });
           this._tagihPembayaran(
             player,
-            100000,
+            biayaAdmin,
             null,
             "Biaya Administrasi Lapas",
             events,
@@ -407,7 +479,15 @@ export class GameEngine {
       if (pemilik && !pemilik.bangkrut) {
         const totalDadu =
           this.state.daduTerakhir[0] + this.state.daduTerakhir[1];
-        const nominalSewa = this.hitungSewa(tileIndex, totalDadu);
+        let nominalSewa = this.hitungSewa(tileIndex, totalDadu);
+        let diskonNote = "";
+
+        // Privilege Orang Have'nt: Diskon sewa tempat tinggal 25%
+        if (player.karakter === "orang_havent") {
+          nominalSewa = Math.round(nominalSewa * 0.75);
+          diskonNote = " [Diskon 25% Orang Have'nt]";
+        }
+
         const level = prop.level || 0;
         const labelBangunan =
           tile.tipe !== "PROPERTY"
@@ -420,7 +500,7 @@ export class GameEngine {
                 ? "1 Hotel Megah"
                 : `${level} Rumah`;
 
-        const msg = `${player.nama} mendarat di ${tile.nama} (${labelBangunan}) dan membayar sewa ${formatRupiah(nominalSewa)} kepada ${pemilik.nama}.`;
+        const msg = `${player.nama} mendarat di ${tile.nama} (${labelBangunan}) dan membayar sewa ${formatRupiah(nominalSewa)}${diskonNote} kepada ${pemilik.nama}.`;
         this._addLog("warn", msg);
         events.push({
           tipe: "PAY_RENT",
@@ -431,7 +511,7 @@ export class GameEngine {
           tileIndex,
           namaPetak: tile.nama,
           levelBangunan: level,
-          labelBangunan,
+          labelBangunan: `${labelBangunan}${diskonNote}`,
           nominal: nominalSewa,
           teks: msg,
         });
@@ -458,21 +538,32 @@ export class GameEngine {
       }
       const totalPajak = jmlTanah * 50000 + jmlBangunan * 25000;
       if (totalPajak > 0) {
-        const msg = `${player.nama} membayar Pajak Tahunan (${jmlTanah} tanah, ${jmlBangunan} bangunan) sebesar ${formatRupiah(totalPajak)}.`;
-        this._addLog("warn", msg);
-        events.push({
-          tipe: "TAX_PAID",
-          playerId: player.id,
-          nominal: totalPajak,
-          teks: msg,
-        });
-        this._tagihPembayaran(
-          player,
-          totalPajak,
-          null,
-          "Pajak Tahunan",
-          events,
-        );
+        // Privilege Keponakan Pejabat: 20% peluang bebas pajak
+        if (player.karakter === "keponakan_pejabat" && this.rng() < 0.2) {
+          const freeMsg = `${player.nama} menggunakan privilege Keponakan Pejabat! Bebas Pajak Tahunan (${formatRupiah(totalPajak)})!`;
+          this._addLog("success", freeMsg);
+          events.push({
+            tipe: "TAX_EXEMPT",
+            playerId: player.id,
+            teks: freeMsg,
+          });
+        } else {
+          const msg = `${player.nama} membayar Pajak Tahunan (${jmlTanah} tanah, ${jmlBangunan} bangunan) sebesar ${formatRupiah(totalPajak)}.`;
+          this._addLog("warn", msg);
+          events.push({
+            tipe: "TAX_PAID",
+            playerId: player.id,
+            nominal: totalPajak,
+            teks: msg,
+          });
+          this._tagihPembayaran(
+            player,
+            totalPajak,
+            null,
+            "Pajak Tahunan",
+            events,
+          );
+        }
       } else {
         this._addLog(
           "info",
@@ -835,18 +926,22 @@ export class GameEngine {
     }
     if (prop.level >= 5)
       return { ok: false, pesan: "Sudah mencapai level maksimal (Hotel)." };
-    if (player.uang < tile.biayaBangun)
+
+    const biayaBangun = this.getUpgradeCost(player, tile);
+    if (player.uang < biayaBangun)
       return {
         ok: false,
-        pesan: `Uang tidak cukup (butuh ${formatRupiah(tile.biayaBangun)}).`,
+        pesan: `Uang tidak cukup (butuh ${formatRupiah(biayaBangun)}).`,
       };
 
-    player.uang -= tile.biayaBangun;
+    player.uang -= biayaBangun;
     prop.level += 1;
 
     const labelLevel =
       prop.level === 5 ? "HOTEL MEGAH" : `Rumah #${prop.level}`;
-    const msg = `${player.nama} membangun ${labelLevel} di ${tile.nama} seharga ${formatRupiah(tile.biayaBangun)}.`;
+    const noteDiskon =
+      player.karakter === "juragan_kos" ? " (Diskon 15% Juragan Kos!)" : "";
+    const msg = `${player.nama} membangun ${labelLevel} di ${tile.nama} seharga ${formatRupiah(biayaBangun)}${noteDiskon}.`;
     this._addLog("success", msg);
 
     return {
@@ -875,7 +970,7 @@ export class GameEngine {
       return { ok: false, pesan: "Aset ini bukan milikmu." };
 
     if (prop.level > 0 && tile.biayaBangun) {
-      const nilaiJual = Math.round(tile.biayaBangun * 0.5);
+      const nilaiJual = Math.round(this.getUpgradeCost(player, tile) * 0.5);
       prop.level -= 1;
       player.uang += nilaiJual;
       const msg = `${player.nama} menjual 1 bangunan di ${tile.nama} seharga ${formatRupiah(nilaiJual)} (50%).`;
@@ -959,6 +1054,25 @@ export class GameEngine {
   _tagihPembayaran(pembayar, nominal, penerima, keterangan, events) {
     pembayar.uang -= nominal;
 
+    // Privilege Suhu Pinjol: Saat uang habis (< 0), cairkan Dana Talangan Darurat Rp 350.000 sekali per game tanpa harus langsung jual aset!
+    if (
+      pembayar.uang < 0 &&
+      pembayar.karakter === "suhu_pinjol" &&
+      !pembayar.danaTalanganTerpakai
+    ) {
+      const danaTalangan = 350000;
+      pembayar.danaTalanganTerpakai = true;
+      pembayar.uang += danaTalangan;
+      const pinjolMsg = `Privilege Suhu Pinjol Aktif! ${pembayar.nama} mencairkan Dana Talangan Darurat +${formatRupiah(danaTalangan)} tanpa harus langsung jual aset!`;
+      this._addLog("success", pinjolMsg);
+      events.push({
+        tipe: "CARD_MONEY_GAIN",
+        playerId: pembayar.id,
+        nominal: danaTalangan,
+        teks: pinjolMsg,
+      });
+    }
+
     while (pembayar.uang < 0) {
       const milikBerbangunan = Object.entries(this.state.properties)
         .filter(([, prop]) => prop.ownerId === pembayar.id && prop.level > 0)
@@ -971,7 +1085,9 @@ export class GameEngine {
 
       if (milikBerbangunan.length > 0) {
         const target = milikBerbangunan[0];
-        const nilaiJual = Math.round(target.tile.biayaBangun * 0.5);
+        const nilaiJual = Math.round(
+          this.getUpgradeCost(pembayar, target.tile) * 0.5,
+        );
         target.prop.level -= 1;
         pembayar.uang += nilaiJual;
         const msg = `Likuidasi Utang: ${pembayar.nama} terpaksa menjual 1 bangunan di ${target.tile.nama} (+${formatRupiah(nilaiJual)}).`;

@@ -74,12 +74,12 @@ export class NetworkClient {
     });
   }
 
-  createRoom(nama, warna) {
+  createRoom(nama, warna, karakter) {
     this.connect();
     return new Promise((resolve) => {
       this.socket.emit(
         'createRoom',
-        { nama, warna, token: this.sessionToken },
+        { nama, warna, karakter, token: this.sessionToken },
         (res) => {
           if (res?.ok) {
             this._saveSession(res.roomCode, res.token, res.playerId, res.roomSummary);
@@ -90,12 +90,12 @@ export class NetworkClient {
     });
   }
 
-  joinRoom(roomCode, nama, warna) {
+  joinRoom(roomCode, nama, warna, karakter) {
     this.connect();
     return new Promise((resolve) => {
       this.socket.emit(
         'joinRoom',
-        { roomCode, nama, warna, token: this.sessionToken },
+        { roomCode, nama, warna, karakter, token: this.sessionToken },
         (res) => {
           if (res?.ok) {
             this._saveSession(res.roomCode, res.token, res.playerId, res.roomSummary);

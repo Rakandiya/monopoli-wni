@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { BOARD_TILES } from "../shared/tiles.js";
+import { getRegionalTheme } from "../shared/regionalThemes.js";
 
 export class Board3D {
   constructor(scene) {
@@ -78,19 +79,19 @@ export class Board3D {
       } else if (side === 0) {
         x = (5 - posInSide) * innerStep;
         z = cornerOffset;
-        rotY = 0;
+        rotY = 0; // Menghadap ke dalam tengah papan (-Z)
       } else if (side === 1) {
         x = -cornerOffset;
         z = (5 - posInSide) * innerStep;
-        rotY = Math.PI / 2;
+        rotY = -Math.PI / 2; // Menghadap ke dalam tengah papan (+X)
       } else if (side === 2) {
         x = (posInSide - 5) * innerStep;
         z = -cornerOffset;
-        rotY = Math.PI;
+        rotY = Math.PI; // Menghadap ke dalam tengah papan (+Z)
       } else if (side === 3) {
         x = cornerOffset;
         z = (posInSide - 5) * innerStep;
-        rotY = -Math.PI / 2;
+        rotY = Math.PI / 2; // Menghadap ke dalam tengah papan (-X)
       }
 
       const tileData = BOARD_TILES[i];
@@ -121,6 +122,10 @@ export class Board3D {
     return new THREE.Vector3(c.x, c.y, c.z);
   }
 
+  getTileCanvas(tileIndex) {
+    return this.tileMeshes[tileIndex]?.canvas || null;
+  }
+
   getTokenPositionOnTile(tileIndex, slotIndex = 0) {
     const coord = this.tileCoordinates[tileIndex];
     if (tileIndex === 10) {
@@ -134,14 +139,28 @@ export class Board3D {
       return new THREE.Vector3(coord.x + off.dx, coord.y, coord.z + off.dz);
     }
 
+    if (coord.isCorner) {
+      const cornerOffsets = [
+        { dx: -0.28, dz: -0.28 },
+        { dx: 0.28, dz: -0.28 },
+        { dx: -0.28, dz: 0.28 },
+        { dx: 0.28, dz: 0.28 },
+      ];
+      const off = cornerOffsets[slotIndex % 4];
+      return new THREE.Vector3(coord.x + off.dx, coord.y, coord.z + off.dz);
+    }
+
+    // Untuk petak biasa: posisikan pion di area trotoar luar (local +Z) agar rapi dan tidak menginjak rumah/pita warna (local -Z)
     const offsets = [
-      { dx: -0.34, dz: -0.18 },
-      { dx: 0.34, dz: -0.18 },
-      { dx: -0.34, dz: 0.42 },
-      { dx: 0.34, dz: 0.42 },
+      { dx: -0.34, dz: 0.38 },
+      { dx: 0.34, dz: 0.38 },
+      { dx: -0.34, dz: 0.06 },
+      { dx: 0.34, dz: 0.06 },
     ];
     const off = offsets[slotIndex % 4];
-    return new THREE.Vector3(coord.x + off.dx, coord.y, coord.z + off.dz);
+    const localVec = new THREE.Vector3(off.dx, 0, off.dz);
+    localVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), coord.rotY);
+    return new THREE.Vector3(coord.x + localVec.x, coord.y, coord.z + localVec.z);
   }
 
   _bangunMejaDanTengahPapan() {
@@ -565,6 +584,7 @@ export class Board3D {
         ownerBadge: ownerBadgeGroup,
         ownerMat: ownerColorMat,
         topTex: tex,
+        canvas: texCanvas,
         sideMat,
         topMat,
         geo,
@@ -578,92 +598,76 @@ export class Board3D {
     canvas.height = 360;
     const ctx = canvas.getContext("2d");
 
-    if (tile.tipe === "PROPERTY") {
-      ctx.fillStyle = "#ecfdf5";
-      ctx.fillRect(0, 0, 256, 360);
+    const theme = getRegionalTheme(tile.index);
 
-      ctx.fillStyle = "rgba(22, 163, 74, 0.16)";
-      for (let g = 0; g < 90; g++) {
-        const gx = ((g * 37) % 240) + 8;
-        const gy = ((g * 73) % 240) + 95;
-        ctx.fillRect(gx, gy, 4, 9);
-      }
-      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.fillRect(18, 96, 220, 190);
-    } else if (tile.tipe === "TRANSPORT") {
-      ctx.fillStyle = "#1e293b";
-      ctx.fillRect(0, 0, 256, 360);
-      ctx.fillStyle = "rgba(148, 163, 184, 0.12)";
-      for (let a = 0; a < 120; a++) {
-        ctx.fillRect((a * 53) % 250, (a * 41) % 350, 3, 3);
-      }
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 6;
-      ctx.setLineDash([18, 14]);
-      ctx.beginPath();
-      ctx.moveTo(24, 95);
-      ctx.lineTo(24, 345);
-      ctx.moveTo(232, 95);
-      ctx.lineTo(232, 345);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    } else if (
-      tile.tipe === "DISASTER" ||
-      tile.tipe === "PUNGLI" ||
-      tile.tipe === "CONFISCATION"
-    ) {
-      ctx.fillStyle = "#271712";
-      ctx.fillRect(0, 0, 256, 360);
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.22)";
-      ctx.lineWidth = 3;
-      for (let c = 0; c < 12; c++) {
-        ctx.beginPath();
-        ctx.moveTo((c * 29) % 256, 90);
-        ctx.lineTo((c * 67) % 256, 350);
-        ctx.stroke();
-      }
+    // 1. Latar Belakang Gradien Khas Daerah
+    const grad = ctx.createLinearGradient(0, 0, 0, 360);
+    if (theme.canvasGradient && theme.canvasGradient.length >= 2) {
+      grad.addColorStop(0, theme.canvasGradient[0]);
+      grad.addColorStop(1, theme.canvasGradient[1]);
     } else {
-      ctx.fillStyle = isCorner ? "#0f172a" : "#f1f5f9";
-      ctx.fillRect(0, 0, 256, 360);
-      ctx.strokeStyle = isCorner
-        ? "rgba(148, 163, 184, 0.15)"
-        : "rgba(15, 23, 42, 0.08)";
-      ctx.lineWidth = 2;
-      for (let u = 90; u < 360; u += 36) {
-        ctx.beginPath();
-        ctx.moveTo(0, u);
-        ctx.lineTo(256, u);
-        ctx.stroke();
-      }
+      grad.addColorStop(0, "#0f172a");
+      grad.addColorStop(1, "#334155");
     }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 360);
 
+    // 2. Bingkai Luar & Aksen Kartu
     ctx.strokeStyle = "#0f172a";
     ctx.lineWidth = 8;
     ctx.strokeRect(4, 4, 248, 352);
 
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(8, 8, 240, 344);
+
+    // 3. Panel Transparan Tengah Tempat Ilustrasi Ciri Khas
+    const panelY = isCorner ? 104 : 88;
+    const panelH = isCorner ? 190 : 206;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.44)";
+    ctx.beginPath();
+    ctx.roundRect(14, panelY, 228, panelH, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 4. Gambar Ilustrasi Ciri Khas Daerah (Gedung Sate, Kujang, Sura & Baya, Pinisi, Candi Bentar, dll)
+    if (typeof theme.drawIllustration === "function") {
+      const illusCy = isCorner ? 222 : 216;
+      theme.drawIllustration(ctx, 128, illusCy, 200, 110);
+    }
+
+    // 5. Header Bar Warna Grup Petak
+    const headerH = isCorner ? 94 : 76;
     ctx.fillStyle = tile.warna || "#475569";
-    ctx.fillRect(8, 8, 240, isCorner ? 95 : 80);
+    ctx.fillRect(8, 8, 240, headerH);
 
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.font = '800 22px "Segoe UI", sans-serif';
+    // Indeks & Ikon Daerah di Header Bar
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '800 20px "Segoe UI", sans-serif';
     ctx.textAlign = "center";
-    ctx.fillText(`#${tile.index}`, 128, isCorner ? 42 : 36);
+    ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+    ctx.shadowBlur = 4;
+    ctx.fillText(`${theme.ikon} #${tile.index}`, 128, isCorner ? 38 : 34);
 
-    const isDarkBg =
-      isCorner ||
-      tile.tipe === "TRANSPORT" ||
-      tile.tipe === "DISASTER" ||
-      tile.tipe === "PUNGLI" ||
-      tile.tipe === "CONFISCATION";
+    // Subjudul Grup / Kategori
+    ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+    ctx.font = '700 11.5px "Segoe UI", sans-serif';
+    ctx.fillText(tile.namaGrup || tile.tipe, 128, isCorner ? 64 : 56);
+    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = isDarkBg ? "#fef08a" : "#0f172a";
-    ctx.font = '800 26px "Segoe UI", sans-serif';
+    // 6. Nama Kota / Petak
+    ctx.fillStyle = "#ffffff";
+    ctx.font = '900 22px "Segoe UI", sans-serif';
+    ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+    ctx.shadowBlur = 6;
     const words = tile.nama.split(" ");
     const lines = [];
     let current = "";
     for (const w of words) {
       const test = current ? `${current} ${w}` : w;
-      if (ctx.measureText(test).width > 210) {
+      if (ctx.measureText(test).width > 200) {
         lines.push(current);
         current = w;
       } else {
@@ -672,21 +676,37 @@ export class Board3D {
     }
     if (current) lines.push(current);
 
-    let startY = isCorner ? 162 : 148;
+    let startY = isCorner ? 128 : 114;
     for (const line of lines) {
       ctx.fillText(line, 128, startY);
-      startY += 32;
+      startY += 26;
     }
+    ctx.shadowBlur = 0;
 
-    ctx.font = '800 24px "Segoe UI", sans-serif';
+    // Julukan Khas Daerah (e.g. "Paris van Java", "Planet Berbeda", "Kota Hujan")
+    ctx.font = 'italic 700 12.5px "Segoe UI", sans-serif';
+    ctx.fillStyle = theme.accentColor || "#fde047";
+    ctx.fillText(theme.julukan, 128, startY + 2);
+
+    // 7. Pill Harga / Tipe di Bagian Bawah
+    const pillY = 304;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+    ctx.beginPath();
+    ctx.roundRect(22, pillY, 212, 42, 21);
+    ctx.fill();
+    ctx.strokeStyle = theme.accentColor || "rgba(255, 255, 255, 0.3)";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
     if (tile.harga) {
-      ctx.fillStyle = isDarkBg ? "#4ade80" : "#b91c1c";
+      ctx.fillStyle = "#4ade80";
+      ctx.font = '900 22px "Segoe UI", sans-serif';
       const ribu = Math.round(tile.harga / 1000);
-      ctx.fillText(`Rp ${ribu} Rb`, 128, 318);
+      ctx.fillText(`Rp ${ribu} Rb`, 128, pillY + 29);
     } else {
-      ctx.fillStyle = isDarkBg ? "#38bdf8" : "#475569";
-      ctx.font = '700 20px "Segoe UI", sans-serif';
-      ctx.fillText(tile.tipe, 128, 318);
+      ctx.fillStyle = theme.accentColor || "#38bdf8";
+      ctx.font = '800 17px "Segoe UI", sans-serif';
+      ctx.fillText(tile.tipe, 128, pillY + 27);
     }
 
     return canvas;
